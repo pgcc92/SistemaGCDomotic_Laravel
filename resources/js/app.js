@@ -14,7 +14,7 @@ function ensureToastContainer() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'gc-toasts';
-        container.className = 'fixed right-4 top-4 z-[100] space-y-3';
+        container.className = 'fixed inset-x-3 top-3 z-[100] space-y-3 sm:left-auto sm:right-4 sm:top-4';
         document.body.appendChild(container);
     }
     return container;
@@ -98,6 +98,73 @@ function escapeHtml(input) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+function ensureDialogRoot() {
+    let root = document.getElementById('gc-dialog-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'gc-dialog-root';
+        document.body.appendChild(root);
+    }
+    return root;
+}
+
+function openDialog(options = {}) {
+    const settings = typeof options === 'string' ? { message: options } : options;
+    const {
+        title = 'Confirmar acción',
+        message = '',
+        confirmText = 'Aceptar',
+        cancelText = 'Cancelar',
+        tone = 'primary',
+        showCancel = false,
+    } = settings;
+    const buttonClass = tone === 'danger'
+        ? 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-300'
+        : 'bg-primary hover:bg-primary/90 focus:ring-primary/30';
+
+    return new Promise((resolve) => {
+        const root = ensureDialogRoot();
+        root.innerHTML = `
+            <div class="fixed inset-0 z-[120] flex items-end justify-center p-3 sm:items-center" role="dialog" aria-modal="true">
+                <div data-gc-dialog-backdrop class="absolute inset-0 bg-slate-950/45 backdrop-blur-sm"></div>
+                <div class="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone === 'danger' ? 'bg-rose-50 text-rose-600' : 'bg-primary/10 text-primary'}">
+                            ${toastIconSvg(tone === 'danger' ? 'warning' : 'info')}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-base font-semibold text-slate-900">${escapeHtml(title)}</h3>
+                            <p class="mt-1 text-sm leading-6 text-slate-600">${escapeHtml(message)}</p>
+                        </div>
+                    </div>
+                    <div class="mt-5 flex justify-end gap-2">
+                        ${showCancel ? `<button data-gc-dialog-cancel type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">${escapeHtml(cancelText)}</button>` : ''}
+                        <button data-gc-dialog-confirm type="button" class="rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 ${buttonClass}">${escapeHtml(confirmText)}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        const close = (result) => {
+            document.removeEventListener('keydown', onKeydown);
+            root.innerHTML = '';
+            resolve(result);
+        };
+        const onKeydown = (event) => {
+            if (event.key === 'Escape') close(false);
+        };
+        document.addEventListener('keydown', onKeydown);
+        root.querySelector('[data-gc-dialog-confirm]')?.addEventListener('click', () => close(true));
+        root.querySelector('[data-gc-dialog-cancel]')?.addEventListener('click', () => close(false));
+        root.querySelector('[data-gc-dialog-backdrop]')?.addEventListener('click', () => close(false));
+        root.querySelector('[data-gc-dialog-confirm]')?.focus();
+    });
+}
+
+window.GCDialog = {
+    alert: (options) => openDialog({ ...(typeof options === 'string' ? { message: options } : options), showCancel: false }),
+    confirm: (options) => openDialog({ ...(typeof options === 'string' ? { message: options } : options), showCancel: true }),
+};
 
 window.GCToast = {
     info: (title, message, opts) => createToast({ type: 'info', title, message, ...(opts || {}) }),

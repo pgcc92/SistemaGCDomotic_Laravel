@@ -21,7 +21,10 @@ final class ComisionService
         $vendedorId = (int) $venta->vendedor_id;
 
         // Regla: preferir por vendedor_id activa y vigente, luego por rol_aplica, luego ninguna.
-        $today = now()->toDateString();
+        $fechaVenta = !empty($venta->fecha_venta)
+            ? \Illuminate\Support\Carbon::parse($venta->fecha_venta)
+            : now();
+        $today = $fechaVenta->toDateString();
         $rule = DB::table('comision_reglas')
             ->where('activo', true)
             ->where('vigente_desde', '<=', $today)
@@ -54,7 +57,7 @@ final class ComisionService
         $base = round($base, 2);
         $monto = $porcentaje > 0 ? round($base * ($porcentaje / 100), 2) : 0.0;
 
-        $periodo = now()->format('Y-m');
+        $periodo = $fechaVenta->format('Y-m');
 
         DB::table('comisiones')->insert([
             'venta_id' => $ventaId,
@@ -65,7 +68,7 @@ final class ComisionService
             'porcentaje' => $porcentaje,
             'monto_comision' => $monto,
             'moneda' => (string) $venta->moneda,
-            'monto_pen' => $venta->total_pen,
+            'monto_pen' => $monto,
             'estado' => 'PENDIENTE',
             'periodo' => $periodo,
             'created_at' => now(),

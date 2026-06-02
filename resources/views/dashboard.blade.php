@@ -18,6 +18,9 @@
     $can = function (string $mod, string $act = 'ver') use ($perms, $isAdmin): bool {
         return $isAdmin || (bool) ($perms[$mod][$act] ?? false);
     };
+    $ventasMes = (float) ($kpis['ventas_mes_total'] ?? 0);
+    $ventasPagadas = (float) ($kpis['ventas_mes_pagadas_total'] ?? 0);
+    $avanceCaja = $ventasMes > 0 ? min(100, round(($ventasPagadas / $ventasMes) * 100)) : 0;
 @endphp
 
 <x-app-layout>
@@ -84,6 +87,54 @@
         x-init="init()"
         class="space-y-6"
     >
+        @if($isAdmin)
+            <section class="overflow-hidden rounded-3xl bg-slate-950 text-white shadow-xl shadow-slate-200/70">
+                <div class="grid gap-5 p-5 sm:p-6 lg:grid-cols-[1.35fr_.65fr]">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="rounded-full bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300 ring-1 ring-inset ring-emerald-300/25">Centro de control</span>
+                            <span class="text-xs text-slate-400">{{ now()->format('d/m/Y') }}</span>
+                        </div>
+                        <h2 class="mt-4 text-xl font-semibold sm:text-2xl">Resumen ejecutivo del negocio</h2>
+                        <p class="mt-1 max-w-2xl text-sm text-slate-300">Ventas, caja y alertas operativas priorizadas para tomar decisiones rápidas.</p>
+                        <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div class="rounded-2xl bg-white/[0.07] p-3 ring-1 ring-inset ring-white/10">
+                                <div class="text-[11px] text-slate-400">Facturación mes</div>
+                                <div class="mt-1 text-base font-semibold">{{ $money($ventasMes, 'PEN') }}</div>
+                            </div>
+                            <div class="rounded-2xl bg-white/[0.07] p-3 ring-1 ring-inset ring-white/10">
+                                <div class="text-[11px] text-slate-400">Cobrado</div>
+                                <div class="mt-1 text-base font-semibold text-emerald-300">{{ $money($ventasPagadas, 'PEN') }}</div>
+                            </div>
+                            <div class="rounded-2xl bg-white/[0.07] p-3 ring-1 ring-inset ring-white/10">
+                                <div class="text-[11px] text-slate-400">Tickets abiertos</div>
+                                <div class="mt-1 text-base font-semibold">{{ (int) ($kpis['tickets_abiertos_count'] ?? 0) }}</div>
+                            </div>
+                            <div class="rounded-2xl bg-white/[0.07] p-3 ring-1 ring-inset ring-white/10">
+                                <div class="text-[11px] text-slate-400">Agenda hoy</div>
+                                <div class="mt-1 text-base font-semibold">{{ (int) ($kpis['agenda_hoy_count'] ?? 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl bg-white/[0.07] p-4 ring-1 ring-inset ring-white/10">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-semibold text-slate-200">Avance de caja</span>
+                            <span class="rounded-full bg-emerald-400/15 px-2 py-1 font-semibold text-emerald-300">{{ $avanceCaja }}%</span>
+                        </div>
+                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full bg-emerald-400" style="width: {{ $avanceCaja }}%"></div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                            <a href="/ventas" class="rounded-xl bg-white/10 px-3 py-2.5 text-center font-semibold hover:bg-white/15">Revisar ventas</a>
+                            <a href="/agenda" class="rounded-xl bg-white/10 px-3 py-2.5 text-center font-semibold hover:bg-white/15">Ver agenda</a>
+                            <a href="/tickets" class="rounded-xl bg-white/10 px-3 py-2.5 text-center font-semibold hover:bg-white/15">Atender tickets</a>
+                            <a href="/productos" class="rounded-xl bg-white/10 px-3 py-2.5 text-center font-semibold hover:bg-white/15">Validar stock</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        @endif
+
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             @if($can('agenda','ver'))
                 <div class="gc-card p-5 bg-gradient-to-br from-emerald-50 to-white">

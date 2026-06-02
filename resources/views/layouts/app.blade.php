@@ -28,7 +28,10 @@
         </style>
     </head>
     <body class="antialiased bg-slate-50 text-slate-900" style="font-family: var(--gc-font), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
-        <div x-data="{ sidebarOpen: false }" class="min-h-screen">
+        <div x-data="{ sidebarOpen: false }"
+             x-effect="document.documentElement.classList.toggle('overflow-hidden', sidebarOpen)"
+             @keydown.escape.window="sidebarOpen = false"
+             class="min-h-screen">
             @include('layouts.sidebar')
 
             <div class="lg:ps-64">
@@ -79,13 +82,15 @@
                     </div>
                 </header>
 
-                <main class="px-4 py-6 lg:px-8">
+                <main class="px-3 pb-24 pt-4 sm:px-4 sm:py-6 lg:px-8 lg:pb-6">
                     {{ $slot }}
                 </main>
             </div>
+
+            @include('layouts.mobile-nav')
         </div>
 
         <!-- Toasts (Preline-style) -->
-        <div id="gc-toasts" class="fixed right-4 top-4 z-[100] space-y-3"></div>
+        <div id="gc-toasts" class="fixed inset-x-3 top-3 z-[100] space-y-3 sm:left-auto sm:right-4 sm:top-4"></div>
     </body>
 </html>

@@ -33,7 +33,7 @@ final class ComisionesController
             $q->where('c.vendedor_id', $uid);
         }
         if (is_string($periodo) && $periodo !== '') {
-            $q->where('c.periodo', $periodo);
+            $q->whereRaw("coalesce(to_char(v.fecha_venta::date, 'YYYY-MM'), c.periodo) = ?", [$periodo]);
         }
         if (($isAdmin || $canViewAll) && $vendedorId) {
             $q->where('c.vendedor_id', (int) $vendedorId);
@@ -44,7 +44,7 @@ final class ComisionesController
                 $w->whereRaw('lower(v.venta_codigo) like ?', ["%{$qq}%"])
                     ->orWhereRaw('lower(u.nombre) like ?', ["%{$qq}%"])
                     ->orWhereRaw('lower(c.estado) like ?', ["%{$qq}%"])
-                    ->orWhereRaw('lower(c.periodo) like ?', ["%{$qq}%"]);
+                    ->orWhereRaw("lower(coalesce(to_char(v.fecha_venta::date, 'YYYY-MM'), c.periodo)) like ?", ["%{$qq}%"]);
             });
         }
         $rows = $q->limit($limit)->get([
@@ -58,7 +58,7 @@ final class ComisionesController
             'c.moneda',
             'c.monto_pen',
             'c.estado',
-            'c.periodo',
+            DB::raw("coalesce(to_char(v.fecha_venta::date, 'YYYY-MM'), c.periodo) as periodo"),
             'c.pago_referencia',
             'c.pagado_at',
             'c.created_at',

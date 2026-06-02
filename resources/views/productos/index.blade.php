@@ -758,7 +758,7 @@
 
                 async confirmDestroy(id) {
                     if (!id) return;
-                    if (!confirm('¿Eliminar este producto?')) return;
+                    if (!await window.GCDialog.confirm({ title: 'Eliminar producto', message: 'Se eliminará el producto seleccionado. Esta acción no se puede deshacer.', confirmText: 'Eliminar', tone: 'danger' })) return;
                     try {
                         const res = await window.axios.post(this.urls.destroy(id), {}, { headers: { 'Accept': 'application/json' } });
                         if (res.data?.ok !== true) {

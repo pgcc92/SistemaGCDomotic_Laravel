@@ -32,7 +32,9 @@
     $openAdmin = $anyAdmin && (request()->routeIs('usuarios.*') || request()->routeIs('roles.*') || request()->routeIs('permisos.*') || request()->routeIs('sucursales.*') || request()->routeIs('auditoria.*') || request()->routeIs('configuracion.*'));
 @endphp
 
-<nav class="mt-6 space-y-3" x-data="{ ops: @js($openOps), inv: @js($openInv), admin: @js($openAdmin) }">
+<nav class="mt-6 space-y-3"
+     x-data="{ ops: @js($openOps), inv: @js($openInv), admin: @js($openAdmin) }"
+     @click="if ($event.target.closest('a') && window.innerWidth < 1024) sidebarOpen = false">
     @if($can('dashboard','ver'))
         <a href="{{ route('dashboard') }}"
            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium {{ $active('dashboard') }}">

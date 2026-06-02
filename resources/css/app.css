@@ -10,6 +10,15 @@
         --gc-secondary: 14 165 233;
         --gc-font: Figtree;
     }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
 }
 
 @layer components {
@@ -20,5 +29,9 @@
     /* Preline helper: remove-element animation for toasts */
     .hs-removing {
         @apply opacity-0 translate-x-2 transition duration-200 ease-out;
+    }
+
+    .gc-safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
     }
 }

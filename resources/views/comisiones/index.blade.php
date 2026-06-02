@@ -658,13 +658,21 @@
                     this.periodo.vendedor_id = String(this.pagoSel.vendedor_id);
                 },
 
+                suggestedPeriodo() {
+                    const periodos = (this.pagos || [])
+                        .map(row => String(row.periodo || '').trim())
+                        .filter(Boolean)
+                        .sort()
+                        .reverse();
+                    if (periodos.length) return periodos[0];
+                    const now = new Date();
+                    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                },
+
                 resetPeriodo() {
                     this.periodoError = '';
                     this.periodoResult = null;
-                    const now = new Date();
-                    const y = now.getFullYear();
-                    const m = String(now.getMonth() + 1).padStart(2, '0');
-                    this.periodo = { periodo: `${y}-${m}`, instalador_fee: 180, porcentaje: '', vendedor_id: '' };
+                    this.periodo = { periodo: this.suggestedPeriodo(), instalador_fee: 180, porcentaje: '', vendedor_id: '' };
                 },
 
                 async submitPeriodo() {
@@ -814,10 +822,7 @@
                 resetPagar() {
                     this.pagarError = '';
                     this.pagarOk = '';
-                    const now = new Date();
-                    const y = now.getFullYear();
-                    const m = String(now.getMonth() + 1).padStart(2, '0');
-                    this.pagar = { periodo: `${y}-${m}`, vendedor_id: '', referencia: '' };
+                    this.pagar = { periodo: this.suggestedPeriodo(), vendedor_id: '', referencia: '' };
                 },
 
                 async submitPagar() {

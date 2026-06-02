@@ -219,7 +219,7 @@
 
                 async destroy() {
                     if (!this.form.id) return;
-                    if (!confirm('¿Eliminar esta sucursal?')) return;
+                    if (!await window.GCDialog.confirm({ title: 'Eliminar sucursal', message: 'Esta acción no se puede deshacer.', confirmText: 'Eliminar', tone: 'danger' })) return;
                     this.error = '';
                     try {
                         const res = await window.axios.post(this.urls.destroy(this.form.id), {}, { headers: { 'Accept': 'application/json' } });
@@ -237,4 +237,3 @@
         }
     </script>
 </x-app-layout>
-

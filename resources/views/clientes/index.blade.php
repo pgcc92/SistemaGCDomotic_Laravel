@@ -479,7 +479,7 @@
 
                 async confirmDestroy(id) {
                     if (!id) return;
-                    if (!confirm('¿Eliminar este cliente?')) return;
+                    if (!await window.GCDialog.confirm({ title: 'Eliminar cliente', message: 'Se eliminará la ficha del cliente. Esta acción no se puede deshacer.', confirmText: 'Eliminar', tone: 'danger' })) return;
                     try {
                         const res = await window.axios.post(this.urls.destroy(id), {}, { headers: { 'Accept': 'application/json' } });
                         if (res.data?.ok !== true) {
