@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Throwable;
 
 final class ProductosController
 {
@@ -66,6 +67,7 @@ final class ProductosController
         ]);
 
         $imagenUrl = $payload['imagen_url'] ?? null;
+        $uploadedImageUrl = null;
         if (!empty($payload['remove_imagen'])) {
             $imagenUrl = null;
         } elseif ($request->hasFile('imagen_file')) {
@@ -74,7 +76,8 @@ final class ProductosController
                 try {
                     $saved = $this->upload->saveImage($file, 'productos');
                     $imagenUrl = $saved['url'];
-                } catch (\Throwable $e) {
+                    $uploadedImageUrl = $saved['url'];
+                } catch (Throwable $e) {
                     $msg = $e->getMessage() ?: 'No se pudo procesar la imagen.';
                     if ($request->expectsJson()) {
                         return response()->json(['ok' => false, 'error' => $msg], 422);
@@ -88,26 +91,37 @@ final class ProductosController
         if (!empty($payload['stock_inicial_json'])) {
             $decoded = json_decode((string) $payload['stock_inicial_json'], true);
             if (!is_array($decoded)) {
+                $this->upload->deleteByUrl($uploadedImageUrl);
                 return back()->withErrors(['stock_inicial_json' => 'stock_inicial_json debe ser un JSON array.'])->withInput();
             }
             $stockInicial = $decoded;
         }
 
-        $res = $this->data->crearProducto([
-            'sku' => Str::upper(trim((string) $payload['sku'])),
-            'nombre' => $payload['nombre'],
-            'precio' => $payload['precio'] ?? 0,
-            'costo' => $payload['costo'] ?? 0,
-            'moneda' => $payload['moneda'] ?? 'PEN',
-            'categoria' => $payload['categoria'] ?? null,
-            'modelo' => $payload['modelo'] ?? null,
-            'imagen_url' => $imagenUrl,
-            'descripcion' => $payload['descripcion'] ?? null,
-            'stock_inicial' => $stockInicial ?: null,
-        ]);
+        try {
+            $res = $this->data->crearProducto([
+                'sku' => Str::upper(trim((string) $payload['sku'])),
+                'nombre' => $payload['nombre'],
+                'precio' => $payload['precio'] ?? 0,
+                'costo' => $payload['costo'] ?? 0,
+                'moneda' => $payload['moneda'] ?? 'PEN',
+                'categoria' => $payload['categoria'] ?? null,
+                'modelo' => $payload['modelo'] ?? null,
+                'imagen_url' => $imagenUrl,
+                'descripcion' => $payload['descripcion'] ?? null,
+                'stock_inicial' => $stockInicial ?: null,
+            ]);
+        } catch (Throwable $exception) {
+            $this->upload->deleteByUrl($uploadedImageUrl);
+            report($exception);
+
+            return $request->expectsJson()
+                ? response()->json(['ok' => false, 'error' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'], 503)
+                : back()->withErrors(['sku' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'])->withInput();
+        }
 
         $id = (int) ($res['id'] ?? 0);
         if ($id <= 0) {
+            $this->upload->deleteByUrl($uploadedImageUrl);
             if ($request->expectsJson()) {
                 return response()->json(['ok' => false, 'error' => $res['error'] ?? 'No se pudo crear el producto.'], 422);
             }
@@ -152,6 +166,7 @@ final class ProductosController
         ]);
 
         $imagenUrl = $payload['imagen_url'] ?? null;
+        $uploadedImageUrl = null;
         if (!empty($payload['remove_imagen'])) {
             $imagenUrl = null;
         } elseif ($request->hasFile('imagen_file')) {
@@ -160,7 +175,8 @@ final class ProductosController
                 try {
                     $saved = $this->upload->saveImage($file, 'productos');
                     $imagenUrl = $saved['url'];
-                } catch (\Throwable $e) {
+                    $uploadedImageUrl = $saved['url'];
+                } catch (Throwable $e) {
                     $msg = $e->getMessage() ?: 'No se pudo procesar la imagen.';
                     if ($request->expectsJson()) {
                         return response()->json(['ok' => false, 'error' => $msg], 422);
@@ -174,6 +190,7 @@ final class ProductosController
         if (!empty($payload['stock_meta_json'])) {
             $decoded = json_decode((string) $payload['stock_meta_json'], true);
             if (!is_array($decoded)) {
+                $this->upload->deleteByUrl($uploadedImageUrl);
                 return back()->withErrors(['stock_meta_json' => 'stock_meta_json debe ser un JSON array.'])->withInput();
             }
             $stockMeta = $decoded;
@@ -197,8 +214,18 @@ final class ProductosController
             $apiPayload['stock_meta'] = $stockMeta;
         }
 
-        $res = $this->data->actualizarProducto($id, $apiPayload);
+        try {
+            $res = $this->data->actualizarProducto($id, $apiPayload);
+        } catch (Throwable $exception) {
+            $this->upload->deleteByUrl($uploadedImageUrl);
+            report($exception);
+
+            return $request->expectsJson()
+                ? response()->json(['ok' => false, 'error' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'], 503)
+                : back()->withErrors(['sku' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'])->withInput();
+        }
         if (isset($res['error'])) {
+            $this->upload->deleteByUrl($uploadedImageUrl);
             if ($request->expectsJson()) {
                 return response()->json(['ok' => false, 'error' => $res['error']], 422);
             }

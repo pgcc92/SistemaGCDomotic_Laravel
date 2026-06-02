@@ -5,6 +5,8 @@ namespace App\Infrastructure\ConfigStore;
 use App\Domain\Tenant\Branding;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Arr;
+use JsonException;
+use RuntimeException;
 
 final class FileConfigStore implements ConfigStore
 {
@@ -69,18 +71,16 @@ final class FileConfigStore implements ConfigStore
     {
         $path = $this->path($tenantId);
         $dir = dirname($path);
-        if (!$this->files->exists($dir)) {
-            $this->files->makeDirectory($dir, 0755, true);
-        }
+        $this->ensureWritableDirectory($dir);
 
         $current = $this->getBranding($tenantId);
 
         $next = [
             'system_name' => (string) ($payload['system_name'] ?? $current->systemName),
             'sidebar_name' => (string) ($payload['sidebar_name'] ?? $current->sidebarName ?? $current->systemName),
-            'logo_url' => $payload['logo_url'] ?? $current->logoUrl,
-            'login_logo_url' => $payload['login_logo_url'] ?? $current->loginLogoUrl,
-            'favicon_url' => $payload['favicon_url'] ?? $current->faviconUrl,
+            'logo_url' => array_key_exists('logo_url', $payload) ? $payload['logo_url'] : $current->logoUrl,
+            'login_logo_url' => array_key_exists('login_logo_url', $payload) ? $payload['login_logo_url'] : $current->loginLogoUrl,
+            'favicon_url' => array_key_exists('favicon_url', $payload) ? $payload['favicon_url'] : $current->faviconUrl,
             'colors' => [
                 'primary' => (string) Arr::get($payload, 'colors.primary', $current->colors['primary']),
                 'secondary' => (string) Arr::get($payload, 'colors.secondary', $current->colors['secondary']),
@@ -93,8 +93,37 @@ final class FileConfigStore implements ConfigStore
             ],
         ];
 
-        $this->files->put($path, json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        try {
+            $json = json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('No se pudo serializar la configuración.', 0, $exception);
+        }
+
+        $temporaryPath = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        try {
+            if (file_put_contents($temporaryPath, $json, LOCK_EX) === false) {
+                throw new RuntimeException('No se pudo escribir la configuración.');
+            }
+            if (!@rename($temporaryPath, $path)) {
+                throw new RuntimeException('No se pudo publicar la configuración.');
+            }
+        } finally {
+            if ($this->files->exists($temporaryPath)) {
+                $this->files->delete($temporaryPath);
+            }
+        }
 
         return $this->getBranding($tenantId);
+    }
+
+    private function ensureWritableDirectory(string $directory): void
+    {
+        if (!$this->files->isDirectory($directory) && !$this->files->makeDirectory($directory, 0775, true)) {
+            throw new RuntimeException('No se pudo preparar el almacenamiento de configuración.');
+        }
+
+        if (!is_writable($directory)) {
+            throw new RuntimeException('El almacenamiento de configuración no tiene permisos de escritura.');
+        }
     }
 }

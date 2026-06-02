@@ -8,6 +8,7 @@ use App\Services\UploadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Throwable;
 
 final class ConfiguracionController
 {
@@ -28,6 +29,7 @@ final class ConfiguracionController
 
     public function update(Request $request): RedirectResponse
     {
+        $previousBranding = $this->tenant->branding();
         $validated = $request->validate([
             'system_name' => ['required', 'string', 'max:120'],
             'sidebar_name' => ['nullable', 'string', 'max:120'],
@@ -60,33 +62,51 @@ final class ConfiguracionController
             'dark_mode_enabled' => (bool) ($validated['dark_mode_enabled'] ?? false),
         ];
 
-        // Branding assets (settings): logo, login logo, favicon
-        if ((bool) ($validated['remove_logo'] ?? false)) {
-            $payload['logo_url'] = null;
-        }
-        if ((bool) ($validated['remove_login_logo'] ?? false)) {
-            $payload['login_logo_url'] = null;
-        }
-        if ((bool) ($validated['remove_favicon'] ?? false)) {
-            $payload['favicon_url'] = null;
+        $newImageUrls = [];
+        try {
+            // Branding assets (settings): logo, login logo, favicon
+            if ((bool) ($validated['remove_logo'] ?? false)) {
+                $payload['logo_url'] = null;
+            }
+            if ((bool) ($validated['remove_login_logo'] ?? false)) {
+                $payload['login_logo_url'] = null;
+            }
+            if ((bool) ($validated['remove_favicon'] ?? false)) {
+                $payload['favicon_url'] = null;
+            }
+
+            foreach ([
+                'logo_file' => 'logo_url',
+                'login_logo_file' => 'login_logo_url',
+                'favicon_file' => 'favicon_url',
+            ] as $fileKey => $urlKey) {
+                if (!$request->hasFile($fileKey)) {
+                    continue;
+                }
+                $upload = $this->uploads->saveImage($request->file($fileKey), 'settings');
+                $payload[$urlKey] = $upload['url'];
+                $newImageUrls[] = $upload['url'];
+            }
+
+            $this->configStore->putBranding($this->tenant->tenantId(), $payload);
+        } catch (Throwable $exception) {
+            $this->uploads->deleteMany($newImageUrls);
+            report($exception);
+
+            return back()
+                ->withErrors(['configuracion' => 'No se pudo guardar la configuración o sus imágenes. Verifica el almacenamiento e inténtalo nuevamente.'])
+                ->withInput();
         }
 
-        if ($request->hasFile('logo_file')) {
-            $up = $this->uploads->saveImage($request->file('logo_file'), 'settings');
-            $payload['logo_url'] = $up['url'];
+        foreach ([
+            'logo_url' => $previousBranding->logoUrl,
+            'login_logo_url' => $previousBranding->loginLogoUrl,
+            'favicon_url' => $previousBranding->faviconUrl,
+        ] as $urlKey => $previousUrl) {
+            if (array_key_exists($urlKey, $payload) && $payload[$urlKey] !== $previousUrl) {
+                $this->uploads->deleteByUrl($previousUrl);
+            }
         }
-        if ($request->hasFile('login_logo_file')) {
-            $up = $this->uploads->saveImage($request->file('login_logo_file'), 'settings');
-            $payload['login_logo_url'] = $up['url'];
-        }
-        if ($request->hasFile('favicon_file')) {
-            $up = $this->uploads->saveImage($request->file('favicon_file'), 'settings');
-            $payload['favicon_url'] = $up['url'];
-        }
-
-        $this->configStore->putBranding($this->tenant->tenantId(), [
-            ...$payload,
-        ]);
 
         return back()->with('status', 'Configuración actualizada.');
     }

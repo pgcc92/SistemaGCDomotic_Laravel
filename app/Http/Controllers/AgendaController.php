@@ -7,6 +7,7 @@ use App\Services\UploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Throwable;
 
 final class AgendaController
 {
@@ -131,7 +132,13 @@ final class AgendaController
             'gps_lng' => ['nullable', 'numeric'],
         ]);
 
-        $agenda = $this->data->agendaItem($id);
+        try {
+            $agenda = $this->data->agendaItem($id);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['ok' => false, 'error' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'], 503);
+        }
         if (isset($agenda['error'])) {
             return response()->json(['ok' => false, 'error' => (string) $agenda['error']], 422);
         }
@@ -150,12 +157,19 @@ final class AgendaController
         }
 
         $fotosPayload = [];
-        foreach ($files as $file) {
-            $saved = $this->upload->saveImage($file, 'dispositivos');
-            $fotosPayload[] = [
-                'url' => $saved['url'],
-                'thumb_url' => $saved['thumb_url'],
-            ];
+        try {
+            foreach ($files as $file) {
+                $saved = $this->upload->saveImage($file, 'dispositivos');
+                $fotosPayload[] = [
+                    'url' => $saved['url'],
+                    'thumb_url' => $saved['thumb_url'],
+                ];
+            }
+        } catch (Throwable $exception) {
+            $this->upload->deleteMany(array_column($fotosPayload, 'url'));
+            report($exception);
+
+            return response()->json(['ok' => false, 'error' => 'No se pudieron guardar las imágenes de evidencia.'], 422);
         }
 
         $fotoUrl = $fotosPayload[0]['url'] ?? null;
@@ -202,21 +216,29 @@ final class AgendaController
             $fechaInstalacion = null;
         }
 
-        $dispositivo = $this->data->crearDispositivo([
-            'cliente_wa' => $clienteWa !== '' ? $clienteWa : null,
-            'modelo_cerradura' => $metaModelo,
-            'serial_cerradura' => $metaSerial,
-            'direccion' => $metaDireccion ?: ((string) ($agenda['descripcion'] ?? '') ?: null),
-            'fecha_instalacion' => $fechaInstalacion,
-            'gps_lat' => $payload['gps_lat'] ?? null,
-            'gps_lng' => $payload['gps_lng'] ?? null,
-            'notas_instalacion' => $notasInstalacion !== '' ? $notasInstalacion : null,
-            'foto_url' => $fotoUrl,
-            'foto_thumb_url' => $fotoThumb,
-            'fotos' => $fotosPayload,
-        ]);
+        try {
+            $dispositivo = $this->data->crearDispositivo([
+                'cliente_wa' => $clienteWa !== '' ? $clienteWa : null,
+                'modelo_cerradura' => $metaModelo,
+                'serial_cerradura' => $metaSerial,
+                'direccion' => $metaDireccion ?: ((string) ($agenda['descripcion'] ?? '') ?: null),
+                'fecha_instalacion' => $fechaInstalacion,
+                'gps_lat' => $payload['gps_lat'] ?? null,
+                'gps_lng' => $payload['gps_lng'] ?? null,
+                'notas_instalacion' => $notasInstalacion !== '' ? $notasInstalacion : null,
+                'foto_url' => $fotoUrl,
+                'foto_thumb_url' => $fotoThumb,
+                'fotos' => $fotosPayload,
+            ]);
+        } catch (Throwable $exception) {
+            $this->upload->deleteMany(array_column($fotosPayload, 'url'));
+            report($exception);
+
+            return response()->json(['ok' => false, 'error' => 'No se pudo conectar con el servicio de datos. Inténtalo nuevamente.'], 503);
+        }
 
         if (isset($dispositivo['error'])) {
+            $this->upload->deleteMany(array_column($fotosPayload, 'url'));
             return response()->json(['ok' => false, 'error' => (string) $dispositivo['error']], 422);
         }
 
@@ -234,7 +256,13 @@ final class AgendaController
             $update['notas'] = $updateNotas;
         }
 
-        $updated = $this->data->agendaActualizar($id, $update);
+        try {
+            $updated = $this->data->agendaActualizar($id, $update);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['ok' => false, 'error' => 'La evidencia se registró, pero no se pudo actualizar la agenda. Inténtalo nuevamente.'], 503);
+        }
         if (isset($updated['error'])) {
             return response()->json(['ok' => false, 'error' => (string) $updated['error']], 422);
         }

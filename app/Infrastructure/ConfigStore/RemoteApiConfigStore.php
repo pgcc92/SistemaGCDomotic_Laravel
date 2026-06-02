@@ -5,6 +5,9 @@ namespace App\Infrastructure\ConfigStore;
 use App\Domain\Tenant\Branding;
 use App\Infrastructure\Http\RemoteApiClient;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Throwable;
 
 final class RemoteApiConfigStore implements ConfigStore
 {
@@ -17,26 +20,15 @@ final class RemoteApiConfigStore implements ConfigStore
     {
         $endpoint = (string) config('gc.remote_api.endpoints.branding_get', '/api/v1/branding');
 
-        $res = $this->api->request($tenantId)->get($endpoint);
+        try {
+            $res = $this->api->request($tenantId)->get($endpoint);
+        } catch (Throwable $exception) {
+            Log::warning('No se pudo cargar branding remoto.', ['error' => $exception->getMessage()]);
+            return $this->defaultBranding();
+        }
         if (!$res->ok()) {
             // Fallback a defaults locales si el endpoint remoto aún no existe.
-            return new Branding(
-                systemName: config('app.name', 'GC Dashboard'),
-                sidebarName: config('app.name', 'GC Dashboard'),
-                logoUrl: null,
-                loginLogoUrl: null,
-                faviconUrl: null,
-                colors: [
-                    'primary' => config('gc.branding.colors.primary'),
-                    'secondary' => config('gc.branding.colors.secondary'),
-                ],
-                fontFamily: config('gc.branding.font_family'),
-                darkModeEnabled: (bool) config('gc.branding.dark_mode_enabled', true),
-                loginGradient: [
-                    'from' => config('gc.branding.login_gradient.from', '16 185 129'),
-                    'to' => config('gc.branding.login_gradient.to', '2 6 23'),
-                ],
-            );
+            return $this->defaultBranding();
         }
 
         $json = $res->json();
@@ -65,12 +57,36 @@ final class RemoteApiConfigStore implements ConfigStore
     {
         $endpoint = (string) config('gc.remote_api.endpoints.branding_put', '/api/v1/branding');
 
-        $res = $this->api->request($tenantId)->put($endpoint, $payload);
+        try {
+            $res = $this->api->request($tenantId)->put($endpoint, $payload);
+        } catch (Throwable $exception) {
+            throw new RuntimeException('No se pudo guardar la configuración remota.', 0, $exception);
+        }
         if ($res->ok()) {
             return $this->getBranding($tenantId);
         }
 
-        // Si remoto no soporta edición aún, mantenemos un fallback local.
-        return $this->getBranding($tenantId);
+        throw new RuntimeException('No se pudo guardar la configuración remota.');
+    }
+
+    private function defaultBranding(): Branding
+    {
+        return new Branding(
+            systemName: config('app.name', 'GC Dashboard'),
+            sidebarName: config('app.name', 'GC Dashboard'),
+            logoUrl: null,
+            loginLogoUrl: null,
+            faviconUrl: null,
+            colors: [
+                'primary' => config('gc.branding.colors.primary'),
+                'secondary' => config('gc.branding.colors.secondary'),
+            ],
+            fontFamily: config('gc.branding.font_family'),
+            darkModeEnabled: (bool) config('gc.branding.dark_mode_enabled', true),
+            loginGradient: [
+                'from' => config('gc.branding.login_gradient.from', '16 185 129'),
+                'to' => config('gc.branding.login_gradient.to', '2 6 23'),
+            ],
+        );
     }
 }

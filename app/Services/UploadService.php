@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
+use RuntimeException;
+use Throwable;
 
 final class UploadService
 {
@@ -22,38 +25,32 @@ final class UploadService
     public function saveImage(UploadedFile $file, string $category): array
     {
         $category = trim($category);
-        if ($category === '') {
-            throw new \RuntimeException('Categoría inválida.');
+        if (!in_array($category, ['settings', 'productos', 'dispositivos'], true)) {
+            throw new RuntimeException('Categoría de imagen inválida.');
         }
 
         if (!$file->isValid()) {
-            throw new \RuntimeException('Upload inválido.');
+            throw new RuntimeException('Upload inválido.');
         }
 
         $tmpPath = $file->getPathname();
         if (!is_uploaded_file($tmpPath)) {
-            throw new \RuntimeException('Upload inválido (no es un archivo subido).');
+            throw new RuntimeException('Upload inválido (no es un archivo subido).');
         }
 
         $maxBytes = 10 * 1024 * 1024; // 10MB
         $size = (int) ($file->getSize() ?? 0);
         if ($size <= 0 || $size > $maxBytes) {
-            throw new \RuntimeException('La imagen supera el tamaño máximo (10MB).');
+            throw new RuntimeException('La imagen supera el tamaño máximo (10MB).');
         }
 
         $mime = strtolower((string) $file->getMimeType());
         $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
         if (!array_key_exists($mime, $allowed)) {
-            throw new \RuntimeException('Tipo de imagen no permitido. Solo JPG/PNG/WebP.');
+            throw new RuntimeException('Tipo de imagen no permitido. Solo JPG/PNG/WebP.');
         }
 
-        $ext = strtolower((string) ($file->getClientOriginalExtension() ?: $allowed[$mime]));
-        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
-            $ext = $allowed[$mime];
-        }
-        if ($ext === 'jpeg') {
-            $ext = 'jpg';
-        }
+        $ext = $allowed[$mime];
 
         $year = now()->format('Y');
         $month = now()->format('m');
@@ -61,18 +58,26 @@ final class UploadService
 
         $dir = base_path("storage/{$category}/{$year}/{$month}");
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new \RuntimeException('No se pudo crear el directorio de destino.');
+            throw new RuntimeException('No se pudo crear el directorio de destino.');
+        }
+        if (!is_writable($dir)) {
+            throw new RuntimeException('El almacenamiento de imágenes no tiene permisos de escritura.');
         }
 
         $filename = "{$uuid}.{$ext}";
         $fullPath = $dir . DIRECTORY_SEPARATOR . $filename;
 
-        $file->move($dir, $filename);
+        try {
+            $file->move($dir, $filename);
 
-        $manager = new ImageManager(new Driver());
-        $image = $manager->read($fullPath)->orient();
-        $image->resizeDown(480, 480);
-        $image->save($fullPath, ['quality' => 85]);
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($fullPath)->orient();
+            $image->resizeDown(480, 480);
+            $image->save($fullPath, ['quality' => 85]);
+        } catch (Throwable $exception) {
+            @unlink($fullPath);
+            throw new RuntimeException('No se pudo guardar o procesar la imagen.', 0, $exception);
+        }
 
         $thumbFilename = "{$uuid}_thumb.{$ext}";
         $thumbFullPath = $dir . DIRECTORY_SEPARATOR . $thumbFilename;
@@ -84,8 +89,13 @@ final class UploadService
             if (is_file($thumbFullPath)) {
                 $thumbUrl = "/files/{$category}/{$year}/{$month}/{$thumbFilename}";
             }
-        } catch (\Throwable) {
-            // thumbnail es best-effort; puede no existir
+        } catch (Throwable $exception) {
+            @unlink($thumbFullPath);
+            Log::warning('No se pudo generar la miniatura de la imagen.', [
+                'category' => $category,
+                'file' => $filename,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         return [
@@ -97,5 +107,31 @@ final class UploadService
             'month' => $month,
         ];
     }
-}
 
+    /** @param array<int,?string> $urls */
+    public function deleteMany(array $urls): void
+    {
+        foreach ($urls as $url) {
+            $this->deleteByUrl($url);
+        }
+    }
+
+    public function deleteByUrl(?string $url): void
+    {
+        if (!is_string($url) || !preg_match(
+            '#^/files/(settings|productos|dispositivos)/(\d{4})/(0[1-9]|1[0-2])/([0-9a-f-]{36})(?:_thumb)?\.(jpg|png|webp)$#i',
+            $url,
+            $matches,
+        )) {
+            return;
+        }
+
+        $directory = base_path("storage/{$matches[1]}/{$matches[2]}/{$matches[3]}");
+        foreach (["{$matches[4]}.{$matches[5]}", "{$matches[4]}_thumb.{$matches[5]}"] as $filename) {
+            $path = $directory . DIRECTORY_SEPARATOR . $filename;
+            if (is_file($path) && !@unlink($path)) {
+                Log::warning('No se pudo eliminar una imagen huérfana.', ['path' => $path]);
+            }
+        }
+    }
+}
