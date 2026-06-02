@@ -24,10 +24,17 @@ final class DashboardController
         $productos = (string) config('gc.tables.productos', 'productos');
         $stockSucursal = (string) config('gc.tables.stock_sucursal', 'stock_sucursal');
         $agenda = (string) config('gc.tables.agenda_instalaciones', 'agenda_instalaciones');
+        $ventaItems = (string) config('gc.tables.venta_items', 'venta_items');
 
         $today = now();
         $startMonth = $today->copy()->startOfMonth()->startOfDay();
         $endMonth = $today->copy()->endOfMonth()->endOfDay();
+        $startPreviousMonth = $today->copy()->subMonthNoOverflow()->startOfMonth()->startOfDay();
+        $endPreviousMonth = $today->copy()->subMonthNoOverflow()->endOfMonth()->endOfDay();
+        $startYear = $today->copy()->startOfYear()->startOfDay();
+        $endYear = $today->copy()->endOfYear()->endOfDay();
+        $startPreviousYear = $today->copy()->subYear()->startOfYear()->startOfDay();
+        $endPreviousYearComparable = $today->copy()->subYear()->endOfDay();
         $start30 = $today->copy()->subDays(29)->startOfDay();
         $end30 = $today->copy()->endOfDay();
 
@@ -49,6 +56,16 @@ final class DashboardController
             'ventas_mes_pagadas_total' => 0.0,
             'ventas_mes_pagadas_count' => 0,
             'ventas_mes_pendientes_count' => 0,
+            'ventas_mes_anterior_total' => 0.0,
+            'ventas_mes_anterior_count' => 0,
+            'ventas_mes_variacion_pct' => null,
+            'ventas_anio_total' => 0.0,
+            'ventas_anio_count' => 0,
+            'ventas_anio_pagadas_total' => 0.0,
+            'ventas_anio_promedio_mensual' => 0.0,
+            'ventas_anio_proyeccion' => 0.0,
+            'ventas_anio_anterior_comparable_total' => 0.0,
+            'ventas_anio_variacion_pct' => null,
             'comisiones_pendientes_count' => 0,
             'comisiones_pendientes_total' => 0.0,
             'stock_bajo_count' => 0,
@@ -62,7 +79,13 @@ final class DashboardController
 
         $series = [
             'ventas_30d' => [],
+            'ventas_anio' => [],
             'tickets_por_estado' => [],
+        ];
+        $rankings = [
+            'productos_periodo' => $today->format('Y'),
+            'productos_mas_vendidos' => [],
+            'productos_menos_vendidos' => [],
         ];
 
         if ($this->schema->hasTable($ventas)) {
@@ -77,6 +100,20 @@ final class DashboardController
             $aggTotal = $qTotal->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
             $kpis['ventas_mes_count'] = (int) ($aggTotal->c ?? 0);
             $kpis['ventas_mes_total'] = (float) ($aggTotal->t ?? 0);
+
+            $qPreviousMonth = DB::table($ventas)
+                ->whereNotIn('estado', ['ANULADA'])
+                ->whereBetween('fecha_venta', [$startPreviousMonth, $endPreviousMonth]);
+            if (!$canViewAllVentas && $uid > 0) {
+                $qPreviousMonth->where('vendedor_id', $uid);
+            }
+            $aggPreviousMonth = $qPreviousMonth->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            $previousMonthTotal = (float) ($aggPreviousMonth->t ?? 0);
+            $kpis['ventas_mes_anterior_count'] = (int) ($aggPreviousMonth->c ?? 0);
+            $kpis['ventas_mes_anterior_total'] = $previousMonthTotal;
+            $kpis['ventas_mes_variacion_pct'] = $previousMonthTotal > 0
+                ? round((($kpis['ventas_mes_total'] - $previousMonthTotal) / $previousMonthTotal) * 100, 1)
+                : null;
 
             $qPag = DB::table($ventas)
                 ->where('estado', 'PAGADA')
@@ -93,6 +130,63 @@ final class DashboardController
                 $qPen->where('vendedor_id', $uid);
             }
             $kpis['ventas_mes_pendientes_count'] = (int) $qPen->count();
+
+            $qYear = DB::table($ventas)
+                ->whereNotIn('estado', ['ANULADA'])
+                ->whereBetween('fecha_venta', [$startYear, $endYear]);
+            if (!$canViewAllVentas && $uid > 0) {
+                $qYear->where('vendedor_id', $uid);
+            }
+            $aggYear = $qYear->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            $kpis['ventas_anio_count'] = (int) ($aggYear->c ?? 0);
+            $kpis['ventas_anio_total'] = (float) ($aggYear->t ?? 0);
+            $elapsedMonths = max(1, (int) $today->format('n'));
+            $kpis['ventas_anio_promedio_mensual'] = round($kpis['ventas_anio_total'] / $elapsedMonths, 2);
+            $kpis['ventas_anio_proyeccion'] = round($kpis['ventas_anio_promedio_mensual'] * 12, 2);
+
+            $qYearPaid = DB::table($ventas)
+                ->where('estado', 'PAGADA')
+                ->whereBetween('fecha_venta', [$startYear, $endYear]);
+            if (!$canViewAllVentas && $uid > 0) {
+                $qYearPaid->where('vendedor_id', $uid);
+            }
+            $kpis['ventas_anio_pagadas_total'] = (float) $qYearPaid->sum('total');
+
+            $qPreviousYear = DB::table($ventas)
+                ->whereNotIn('estado', ['ANULADA'])
+                ->whereBetween('fecha_venta', [$startPreviousYear, $endPreviousYearComparable]);
+            if (!$canViewAllVentas && $uid > 0) {
+                $qPreviousYear->where('vendedor_id', $uid);
+            }
+            $previousYearTotal = (float) $qPreviousYear->sum('total');
+            $kpis['ventas_anio_anterior_comparable_total'] = $previousYearTotal;
+            $kpis['ventas_anio_variacion_pct'] = $previousYearTotal > 0
+                ? round((($kpis['ventas_anio_total'] - $previousYearTotal) / $previousYearTotal) * 100, 1)
+                : null;
+
+            $qYearSeries = DB::table($ventas)
+                ->whereNotIn('estado', ['ANULADA'])
+                ->whereBetween('fecha_venta', [$startYear, $endYear]);
+            if (!$canViewAllVentas && $uid > 0) {
+                $qYearSeries->where('vendedor_id', $uid);
+            }
+            $rowsYear = $qYearSeries
+                ->selectRaw("to_char(fecha_venta::date,'YYYY-MM') as m, coalesce(sum(total),0)::numeric as t")
+                ->groupByRaw("to_char(fecha_venta::date,'YYYY-MM')")
+                ->orderByRaw("to_char(fecha_venta::date,'YYYY-MM')")
+                ->get();
+            $yearMap = [];
+            foreach ($rowsYear as $row) {
+                $yearMap[(string) $row->m] = (float) $row->t;
+            }
+            for ($month = 1; $month <= 12; $month++) {
+                $key = $today->copy()->month($month)->format('Y-m');
+                $series['ventas_anio'][] = [
+                    'month' => $key,
+                    'label' => $today->copy()->month($month)->locale('es')->translatedFormat('M'),
+                    'total' => (float) ($yearMap[$key] ?? 0.0),
+                ];
+            }
 
             // Serie 30 días (pagadas)
             $q30 = DB::table($ventas)
@@ -119,6 +213,23 @@ final class DashboardController
                     'total' => (float) ($map[$key] ?? 0.0),
                 ];
                 $cursor->addDay();
+            }
+
+            if ($this->schema->hasTable($ventaItems) && $this->schema->hasTable($productos)) {
+                $productsQuery = DB::table("{$ventaItems} as vi")
+                    ->join("{$ventas} as v", 'v.id', '=', 'vi.venta_id')
+                    ->join("{$productos} as p", 'p.id', '=', 'vi.producto_id')
+                    ->whereNotNull('vi.producto_id')
+                    ->whereNotIn('v.estado', ['ANULADA'])
+                    ->whereBetween('v.fecha_venta', [$startYear, $endYear]);
+                if (!$canViewAllVentas && $uid > 0) {
+                    $productsQuery->where('v.vendedor_id', $uid);
+                }
+                $productSales = $productsQuery
+                    ->selectRaw('p.id, p.sku, p.nombre, p.modelo, coalesce(sum(vi.cantidad),0)::int as unidades, coalesce(sum(vi.total),0)::numeric as importe')
+                    ->groupBy(['p.id', 'p.sku', 'p.nombre', 'p.modelo']);
+                $rankings['productos_mas_vendidos'] = (clone $productSales)->orderByDesc('unidades')->orderByDesc('importe')->limit(5)->get();
+                $rankings['productos_menos_vendidos'] = (clone $productSales)->orderBy('unidades')->orderBy('importe')->limit(5)->get();
             }
         }
 
@@ -175,6 +286,7 @@ final class DashboardController
             'data' => [
                 'kpis' => $kpis,
                 'series' => $series,
+                'rankings' => $rankings,
             ],
         ]);
     }
