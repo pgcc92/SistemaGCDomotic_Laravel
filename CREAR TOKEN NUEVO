@@ -1,0 +1,123 @@
+# Crear un token nuevo (GC_API_TOKEN / X-API-Key)
+Fecha: 2026-05-07
+
+Este sistema usa una **API Key** para proteger la API (`gc-data-api`).
+
+El Dashboard (web) consume la API usando:
+- Header `X-API-Key: <TOKEN>` (modo service-to-service) y/o
+- `Authorization: Bearer <token_usuario>` (modo por usuario, cuando aplica).
+
+En producción, lo más simple es mantener **un token largo** (GC_API_TOKEN) y configurarlo en:
+- API: `GC_API_TOKEN=...`
+- Dashboard: `REMOTE_API_KEY=...`
+
+---
+
+## Opción A (recomendada y simple): token en `.env` (GC_API_TOKEN)
+
+### 1) Generar un token fuerte
+En tu PC o en el Terminal de cPanel, ejecuta:
+
+```bash
+php -r "echo base64_encode(random_bytes(48)), PHP_EOL;"
+```
+
+Ejemplo de salida (no uses este):
+```
+Kq4mYz... (cadena larga)
+```
+
+### 2) Configurar en la API
+Edita:
+- `/home/<usuario>/api.gcdomotic.com/.env`
+
+Agrega/actualiza:
+```
+GC_API_TOKEN=<TOKEN_GENERADO>
+GC_API_CREATED_BY=1
+```
+
+Luego limpia cache:
+```bash
+cd ~/api.gcdomotic.com
+php artisan optimize:clear
+```
+
+### 3) Configurar en el Dashboard
+Edita:
+- `/home/<usuario>/app.gcdomotic.com/.env`
+
+Agrega/actualiza:
+```
+REMOTE_API_KEY=<TOKEN_GENERADO>
+REMOTE_API_BASE_URL=https://api.gcdomotic.com
+```
+
+Luego:
+```bash
+cd ~/app.gcdomotic.com
+php artisan optimize:clear
+```
+
+### 4) Probar el token
+```bash
+TOKEN="<TOKEN_GENERADO>"
+curl -i -H "X-API-Key: $TOKEN" https://api.gcdomotic.com/api/v1/health
+```
+
+Debe responder `200` con `{"ok":true,...}`.
+
+---
+
+## Opción B (más formal): token en tabla `api_keys` (rotación/gestión)
+
+Si quieres manejar llaves con expiración/scopes, crea una llave en la tabla `api_keys`.
+
+### 1) Generar token “en texto plano”
+```bash
+php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+```
+Guarda ese valor como: `API_KEY_PLAIN`.
+
+### 2) Insertar registro en Postgres
+En tu Postgres (misma BD donde existe `api_keys`), inserta:
+
+```sql
+INSERT INTO api_keys (nombre, key_hash, prefijo, scopes, ultimo_uso, expira_at, activo, created_by, created_at)
+VALUES (
+  'Dashboard',
+  encode(digest('<API_KEY_PLAIN>', 'sha256'), 'hex'),
+  substring('<API_KEY_PLAIN>' from 1 for 12),
+  NULL,
+  NULL,
+  NULL,
+  true,
+  1,
+  now()
+);
+```
+
+Notas:
+- Reemplaza `<API_KEY_PLAIN>` por el token plano.
+- `created_by=1` debería ser un usuario admin existente (id real).
+
+### 3) Configurar en el Dashboard
+En el `.env` del dashboard:
+```
+REMOTE_API_KEY=<API_KEY_PLAIN>
+REMOTE_API_BASE_URL=https://api.gcdomotic.com
+```
+
+### 4) Probar
+```bash
+TOKEN="<API_KEY_PLAIN>"
+curl -i -H "X-API-Key: $TOKEN" https://api.gcdomotic.com/api/v1/health
+```
+
+---
+
+## Recomendación de seguridad
+- Si un token se compartió por chat o quedó expuesto, **genera uno nuevo y reemplaza el anterior**.
+- Mantén `APP_DEBUG=false` en producción.
+- Idealmente, restringe acceso a la API por IP (si tu hosting lo permite).
+

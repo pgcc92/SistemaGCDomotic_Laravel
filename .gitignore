@@ -1,0 +1,36 @@
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+
+# macOS / archivos locales
+.DS_Store
+**/.DS_Store
+
+# Paquetes temporales de despliegue
+*.zip
+/ACTUALIZACION_APP_TYPEAHEAD_CLIENTES/
+/app 2/
+/tmp_tickets_inline.js
+
+# Datos generados en ejecución
+/storage/productos/
+/storage/dispositivos/
+/storage/settings/
+/storage/framework/sessions/*
+/storage/logs/*.log

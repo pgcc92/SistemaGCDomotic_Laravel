@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    [x-cloak] { display: none !important; }
+
+    :root {
+        --gc-primary: 79 70 229;
+        --gc-secondary: 14 165 233;
+        --gc-font: Figtree;
+    }
+}
+
+@layer components {
+    .gc-card {
+        @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
+    }
+
+    /* Preline helper: remove-element animation for toasts */
+    .hs-removing {
+        @apply opacity-0 translate-x-2 transition duration-200 ease-out;
+    }
+}

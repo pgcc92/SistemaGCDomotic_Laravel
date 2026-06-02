@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.4">
+  <style type="text/css">
+    p.p4 {margin: 0.0px 0.0px 8.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #000000; -webkit-text-stroke: #ffffff}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+    p.p6 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    li.li1 {margin: 0.0px 0.0px 6.0px 0.0px; font: 12.0px Menlo; color: #000000; -webkit-text-stroke: #ffffff}
+    li.li2 {margin: 0.0px 0.0px 6.0px 0.0px; font: 13.0px 'Helvetica Neue'; color: #000000; -webkit-text-stroke: #ffffff}
+    span.s1 {font: 13.0px 'Helvetica Neue'; -webkit-text-stroke: 0px #000000}
+    span.s2 {font: 13.0px 'Helvetica Neue'; font-kerning: none}
+    span.s3 {font-kerning: none; background-color: rgba(207, 214, 228, 0.1)}
+    span.s4 {-webkit-text-stroke: 0px #000000}
+    span.s5 {font-kerning: none}
+    span.s6 {font: 12.0px Menlo; font-kerning: none; background-color: rgba(207, 214, 228, 0.1)}
+    ul.ul1 {list-style-type: disc}
+  </style>
+</head>
+<body>
+<ul class="ul1">
+  <li class="li1"><span class="s1"></span><span class="s2">Mantener (NO tocar): </span><span class="s3">productos</span><span class="s2">, </span><span class="s3">sucursales</span><span class="s2">, </span><span class="s3">tecnicos</span><span class="s2">, </span><span class="s3">usuarios/roles/permisos/*</span><span class="s2">, </span><span class="s3">soporte_videos</span><span class="s2">, tablas </span><span class="s3">n8n_*</span><span class="s2">, </span><span class="s3">api_keys</span><span class="s2">, </span><span class="s3">audit_log</span><span class="s2">, </span><span class="s3">app_config</span><span class="s2">.</span></li>
+  <li class="li2"><span class="s4"></span><span class="s5">Reiniciar TODO lo operativo: clientes, tickets/chat, ventas/pagos/items, comisiones, stock/kardex, dispositivos/instalaciones, agenda, métricas, etc.</span></li>
+  <li class="li1"><span class="s1"></span><span class="s2">Resetear correlativos: </span><span class="s3">documento_series.correlativo_actual = 0</span><span class="s2">.</span></li>
+</ul>
+<h3 style="margin: 0.0px 0.0px 6.0px 0.0px; font: 18.0px 'Helvetica Neue'; color: #000000; -webkit-text-stroke: #ffffff"><span class="s5">SQL (PostgreSQL) — Reset operativo completo (recomendado)</span></h3>
+<p class="p4"><span class="s5">Cópialo y ejecútalo en tu BD (</span><span class="s6">gcdomoticbot</span><span class="s5">) como usuario con permisos:</span></p>
+<p class="p5"><br></p>
+<p class="p5"><br></p>
+<p class="p5"><br></p>
+<p class="p5"><br></p>
+<p class="p6">BEGIN;</p>
+<p class="p5"><br></p>
+<p class="p6">-- 1) Reset correlativos (manteniendo series)</p>
+<p class="p6">UPDATE public.documento_series</p>
+<p class="p6">SET correlativo_actual = 0;</p>
+<p class="p5"><br></p>
+<p class="p6">-- 2) Limpiar operación (ventas/tickets/inventario/instalaciones/agenda/etc)</p>
+<p class="p6">-- NO incluye: productos, sucursales, tecnicos, usuarios/permisos, soporte_videos, n8n_*, api_keys, audit_log, app_config</p>
+<p class="p6">TRUNCATE TABLE</p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Tickets / chat / buffers</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.conversaciones,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.mensajes_buffer,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.acciones_tecnicos,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.auditoria_tecnico,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.tickets,</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Ventas / items / pagos / comisiones</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.pagos,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.venta_items,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.comisiones,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.ventas,</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Inventario (stock/kardex)</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.movimientos_stock,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.stock_sucursal,</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Instalaciones / fotos</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.dispositivo_fotos,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.dispositivos_cliente,</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Clientes (NO conservar)</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.clientes,</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>-- Métricas / importaciones / tipos de cambio (operativo)</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.metricas_diarias,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.import_logs,</p>
+<p class="p6"><span class="Apple-converted-space">  </span>public.tipo_cambio</p>
+<p class="p6">RESTART IDENTITY CASCADE;</p>
+<p class="p5"><br></p>
+<p class="p6">-- 3) Agenda (no estaba en tu DDL, lo dejo “seguro”: solo trunca si existe)</p>
+<p class="p6">DO $$</p>
+<p class="p6">BEGIN</p>
+<p class="p6"><span class="Apple-converted-space">  </span>IF to_regclass('public.agenda') IS NOT NULL THEN</p>
+<p class="p6"><span class="Apple-converted-space">    </span>EXECUTE 'TRUNCATE TABLE public.agenda RESTART IDENTITY CASCADE';</p>
+<p class="p6"><span class="Apple-converted-space">  </span>END IF;</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>IF to_regclass('public.agenda_eventos') IS NOT NULL THEN</p>
+<p class="p6"><span class="Apple-converted-space">    </span>EXECUTE 'TRUNCATE TABLE public.agenda_eventos RESTART IDENTITY CASCADE';</p>
+<p class="p6"><span class="Apple-converted-space">  </span>END IF;</p>
+<p class="p5"><br></p>
+<p class="p6"><span class="Apple-converted-space">  </span>IF to_regclass('public.agenda_items') IS NOT NULL THEN</p>
+<p class="p6"><span class="Apple-converted-space">    </span>EXECUTE 'TRUNCATE TABLE public.agenda_items RESTART IDENTITY CASCADE';</p>
+<p class="p6"><span class="Apple-converted-space">  </span>END IF;</p>
+<p class="p6">END $$;</p>
+<p class="p5"><br></p>
+<p class="p6">COMMIT;</p>
+</body>
+</html>

@@ -1,0 +1,221 @@
+# Despliegue en cPanel (GC Domotic Dashboard + GC Data API)
+Fecha: 2026-05-07
+
+Este proyecto se despliega como **2 aplicaciones Laravel (PHP)**:
+
+1) **Dashboard (web)** → `app.gcdomotic.com`
+2) **API (gc-data-api)** → `api.gcdomotic.com`
+
+La autenticación del Dashboard depende de la API (login remoto contra Postgres).
+
+---
+
+## A) Requisitos en cPanel (resumen)
+- PHP 8.1+ (ideal 8.2).
+- Extensiones típicas Laravel: `openssl`, `mbstring`, `ctype`, `json`, `curl`, `fileinfo`.
+- Para la API además: `pdo_pgsql` / `pgsql`.
+- Acceso a Terminal en cPanel (para `php artisan ...`). Si no hay, se puede igual pero es más manual.
+
+---
+
+## B) Estructura final esperada en tu hosting (cPanel)
+cPanel suele crear carpetas por subdominio dentro de tu HOME:
+
+- `/home/<usuario>/app.gcdomotic.com/`  → Dashboard
+- `/home/<usuario>/api.gcdomotic.com/`  → API
+
+Cada una debe contener su propio `public/index.php`.
+
+---
+
+## C) Despliegue rápido en cPanel (pasos simples)
+
+### 1) Crear subdominios
+En cPanel → Subdomains:
+- `app.gcdomotic.com` (Dashboard)
+- `api.gcdomotic.com` (API)
+
+> Nota: si cPanel no permite cambiar el DocumentRoot y apunta al root del subdominio (no a `/public`), se usa el `.htaccess` “puente” (ver paso 4).
+
+### 2) Subir archivos (ZIP)
+Sube y extrae por separado:
+
+**Dashboard**
+- Sube un ZIP del proyecto del dashboard (este repo principal) a:
+  - `/home/<usuario>/app.gcdomotic.com/`
+- Extrae el ZIP ahí mismo.
+
+**API**
+- Sube un ZIP de la carpeta `services/gc-data-api/` a:
+  - `/home/<usuario>/api.gcdomotic.com/`
+- Extrae el ZIP ahí mismo.
+
+Checklist:
+- Debe existir:
+  - `/home/<usuario>/app.gcdomotic.com/public/index.php`
+  - `/home/<usuario>/api.gcdomotic.com/public/index.php`
+
+### 3) Configurar `.env` (producción)
+
+#### 3.1) API: `/home/<usuario>/api.gcdomotic.com/.env`
+Config mínimo:
+
+```
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://api.gcdomotic.com
+APP_KEY=base64:GENERADA
+
+DB_CONNECTION=pgsql
+DB_HOST=<IP_O_HOST_POSTGRES_TCP>
+DB_PORT=5432
+DB_DATABASE=gcdomoticbot
+DB_USERNAME=postgres
+DB_PASSWORD=<TU_PASSWORD>
+DB_SSLMODE=prefer
+
+# API Key (service-to-service)
+GC_API_TOKEN=<TOKEN_LARGO>
+
+# Necesario para RBAC cuando el dashboard usa X-API-Key (no Bearer)
+GC_API_CREATED_BY=1
+```
+
+#### 3.2) Dashboard: `/home/<usuario>/app.gcdomotic.com/.env`
+Config mínimo:
+
+```
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://app.gcdomotic.com
+APP_KEY=base64:GENERADA
+
+REMOTE_API_BASE_URL=https://api.gcdomotic.com
+REMOTE_API_KEY=<EL_MISMO_GC_API_TOKEN>
+```
+
+> Importante: en producción NO debe quedar `REMOTE_API_BASE_URL=http://127.0.0.1:8001`.
+
+### 4) (cPanel) Si el subdominio no apunta a `/public`: `.htaccess` puente
+Si al visitar `https://api.gcdomotic.com/api/v1/health` obtienes 404 HTML, crea:
+
+`/home/<usuario>/api.gcdomotic.com/.htaccess`
+
+```apache
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^ public/$0 [L]
+```
+
+Esto permite que `/api/...` llegue a Laravel aunque el DocumentRoot no apunte a `public/`.
+
+### 5) Generar `APP_KEY` y limpiar cache (Terminal cPanel)
+
+**API**
+```bash
+cd ~/api.gcdomotic.com
+php artisan key:generate
+php artisan optimize:clear
+```
+
+**Dashboard**
+```bash
+cd ~/app.gcdomotic.com
+php artisan key:generate
+php artisan optimize:clear
+```
+
+### 6) Permisos de carpetas (muy importante)
+Ambas apps requieren escritura en:
+- `storage/`
+- `bootstrap/cache/`
+
+Si hay errores 500 por permisos, revisa owner/perms desde File Manager.
+
+### 7) Assets (Vite)
+En producción se debe subir el contenido de `public/build/`.
+
+Si no compilas en el servidor, compila localmente:
+```bash
+npm run build
+```
+y vuelve a subir el proyecto (o al menos `public/build` + `manifest.json`).
+
+---
+
+## D) Verificación (tests rápidos)
+
+### 1) API
+Sin token (debe responder Unauthorized):
+```bash
+curl -i https://api.gcdomotic.com/api/v1/health
+```
+
+Con token (debe responder ok + db ok):
+```bash
+TOKEN="<GC_API_TOKEN>"
+curl -i -H "X-API-Key: $TOKEN" https://api.gcdomotic.com/api/v1/health
+```
+
+Matriz de permisos (debe responder 200 JSON):
+```bash
+curl -i -H "X-API-Key: $TOKEN" https://api.gcdomotic.com/api/v1/permisos/matrix
+```
+
+### 2) Dashboard
+- Abrir: `https://app.gcdomotic.com/login`
+- Login por número de documento (validación remota).
+
+---
+
+## E) Uso local (desarrollo)
+
+### 1) Dashboard local
+```
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8010
+
+REMOTE_API_BASE_URL=http://127.0.0.1:8001
+REMOTE_API_KEY=<GC_API_TOKEN_LOCAL>
+```
+
+Arranque:
+```bash
+php artisan optimize:clear
+php artisan serve --host=127.0.0.1 --port=8010
+```
+
+### 2) API local (gc-data-api)
+En `services/gc-data-api/.env`:
+```
+APP_URL=http://127.0.0.1:8001
+DB_* = Postgres remoto (TCP)
+GC_API_TOKEN=<GC_API_TOKEN_LOCAL>
+GC_API_CREATED_BY=1
+```
+
+Arranque:
+```bash
+cd services/gc-data-api
+php artisan optimize:clear
+php artisan serve --host=127.0.0.1 --port=8001
+```
+
+Health:
+```bash
+TOKEN="<GC_API_TOKEN_LOCAL>"
+curl -H "X-API-Key: $TOKEN" http://127.0.0.1:8001/api/v1/health
+```
+
+---
+
+## F) Notas importantes (seguridad)
+- Si alguna contraseña/token se compartió por chat, **rotarla** (cambiar en Postgres / `.env`).
+- Mantener `APP_DEBUG=false` en producción.
+- Restringir el acceso a Postgres remoto por IP (ideal: solo el servidor cPanel).
+
