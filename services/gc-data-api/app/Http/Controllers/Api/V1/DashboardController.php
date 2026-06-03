@@ -93,25 +93,14 @@ final class DashboardController
         ];
 
         if ($this->schema->hasTable($ventas)) {
-            // Total del mes (todo lo vendido, excluye ANULADA).
-            $qTotal = DB::table($ventas)
-                ->whereNotIn('estado', ['ANULADA'])
-                ->whereBetween('fecha_venta', [$startMonth, $endMonth]);
-            if (!$canViewAllVentas && $uid > 0) {
-                // Vendedor no-admin: solo sus ventas
-                $qTotal->where('vendedor_id', $uid);
-            }
-            $aggTotal = $qTotal->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            // Ventas no anuladas: todas las métricas comerciales usan esta misma regla y monto PEN.
+            $qTotal = $this->ventasComercialesQuery($ventas, $startMonth, $endMonth, $canViewAllVentas, $uid);
+            $aggTotal = $this->ventasAggregate($qTotal);
             $kpis['ventas_mes_count'] = (int) ($aggTotal->c ?? 0);
             $kpis['ventas_mes_total'] = (float) ($aggTotal->t ?? 0);
 
-            $qPreviousMonth = DB::table($ventas)
-                ->whereNotIn('estado', ['ANULADA'])
-                ->whereBetween('fecha_venta', [$startPreviousMonth, $endPreviousMonth]);
-            if (!$canViewAllVentas && $uid > 0) {
-                $qPreviousMonth->where('vendedor_id', $uid);
-            }
-            $aggPreviousMonth = $qPreviousMonth->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            $qPreviousMonth = $this->ventasComercialesQuery($ventas, $startPreviousMonth, $endPreviousMonth, $canViewAllVentas, $uid);
+            $aggPreviousMonth = $this->ventasAggregate($qPreviousMonth);
             $previousMonthTotal = (float) ($aggPreviousMonth->t ?? 0);
             $kpis['ventas_mes_anterior_count'] = (int) ($aggPreviousMonth->c ?? 0);
             $kpis['ventas_mes_anterior_total'] = $previousMonthTotal;
@@ -120,30 +109,34 @@ final class DashboardController
                 : null;
             $documentos['actual'] = $this->documentosVentas($ventas, $startMonth, $endMonth, $canViewAllVentas, $uid, $today->format('Y-m'));
             $documentos['anterior'] = $this->documentosVentas($ventas, $startPreviousMonth, $endPreviousMonth, $canViewAllVentas, $uid, $today->copy()->subMonthNoOverflow()->format('Y-m'));
+            // Mantener las tarjetas ejecutivas alineadas exactamente con la composición por documento.
+            $kpis['ventas_mes_count'] = (int) ($documentos['actual']['total_count'] ?? $kpis['ventas_mes_count']);
+            $kpis['ventas_mes_total'] = (float) ($documentos['actual']['total'] ?? $kpis['ventas_mes_total']);
+            $kpis['ventas_mes_anterior_count'] = (int) ($documentos['anterior']['total_count'] ?? $kpis['ventas_mes_anterior_count']);
+            $kpis['ventas_mes_anterior_total'] = (float) ($documentos['anterior']['total'] ?? $kpis['ventas_mes_anterior_total']);
+            $previousMonthTotal = (float) $kpis['ventas_mes_anterior_total'];
+            $kpis['ventas_mes_variacion_pct'] = $previousMonthTotal > 0
+                ? round((($kpis['ventas_mes_total'] - $previousMonthTotal) / $previousMonthTotal) * 100, 1)
+                : null;
 
             $qPag = DB::table($ventas)
-                ->where('estado', 'PAGADA')
+                ->whereRaw("upper(coalesce(estado,'')) = 'PAGADA'")
                 ->whereBetween('fecha_venta', [$startMonth, $endMonth]);
             if (!$canViewAllVentas && $uid > 0) {
                 $qPag->where('vendedor_id', $uid);
             }
-            $agg = $qPag->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            $agg = $qPag->selectRaw('count(*)::int as c, ' . $this->ventasAmountSumSql() . ' as t')->first();
             $kpis['ventas_mes_pagadas_count'] = (int) ($agg->c ?? 0);
             $kpis['ventas_mes_pagadas_total'] = (float) ($agg->t ?? 0);
 
-            $qPen = DB::table($ventas)->where('estado', 'PENDIENTE')->whereBetween('fecha_venta', [$startMonth, $endMonth]);
+            $qPen = DB::table($ventas)->whereRaw("upper(coalesce(estado,'')) = 'PENDIENTE'")->whereBetween('fecha_venta', [$startMonth, $endMonth]);
             if (!$canViewAllVentas && $uid > 0) {
                 $qPen->where('vendedor_id', $uid);
             }
             $kpis['ventas_mes_pendientes_count'] = (int) $qPen->count();
 
-            $qYear = DB::table($ventas)
-                ->whereNotIn('estado', ['ANULADA'])
-                ->whereBetween('fecha_venta', [$startYear, $endYear]);
-            if (!$canViewAllVentas && $uid > 0) {
-                $qYear->where('vendedor_id', $uid);
-            }
-            $aggYear = $qYear->selectRaw('count(*)::int as c, coalesce(sum(total),0)::numeric as t')->first();
+            $qYear = $this->ventasComercialesQuery($ventas, $startYear, $endYear, $canViewAllVentas, $uid);
+            $aggYear = $this->ventasAggregate($qYear);
             $kpis['ventas_anio_count'] = (int) ($aggYear->c ?? 0);
             $kpis['ventas_anio_total'] = (float) ($aggYear->t ?? 0);
             $elapsedMonths = max(1, (int) $today->format('n'));
@@ -151,33 +144,23 @@ final class DashboardController
             $kpis['ventas_anio_proyeccion'] = round($kpis['ventas_anio_promedio_mensual'] * 12, 2);
 
             $qYearPaid = DB::table($ventas)
-                ->where('estado', 'PAGADA')
+                ->whereRaw("upper(coalesce(estado,'')) = 'PAGADA'")
                 ->whereBetween('fecha_venta', [$startYear, $endYear]);
             if (!$canViewAllVentas && $uid > 0) {
                 $qYearPaid->where('vendedor_id', $uid);
             }
-            $kpis['ventas_anio_pagadas_total'] = (float) $qYearPaid->sum('total');
+            $kpis['ventas_anio_pagadas_total'] = (float) $qYearPaid->selectRaw($this->ventasAmountSumSql() . ' as t')->value('t');
 
-            $qPreviousYear = DB::table($ventas)
-                ->whereNotIn('estado', ['ANULADA'])
-                ->whereBetween('fecha_venta', [$startPreviousYear, $endPreviousYearComparable]);
-            if (!$canViewAllVentas && $uid > 0) {
-                $qPreviousYear->where('vendedor_id', $uid);
-            }
-            $previousYearTotal = (float) $qPreviousYear->sum('total');
+            $qPreviousYear = $this->ventasComercialesQuery($ventas, $startPreviousYear, $endPreviousYearComparable, $canViewAllVentas, $uid);
+            $previousYearTotal = (float) $qPreviousYear->selectRaw($this->ventasAmountSumSql() . ' as t')->value('t');
             $kpis['ventas_anio_anterior_comparable_total'] = $previousYearTotal;
             $kpis['ventas_anio_variacion_pct'] = $previousYearTotal > 0
                 ? round((($kpis['ventas_anio_total'] - $previousYearTotal) / $previousYearTotal) * 100, 1)
                 : null;
 
-            $qYearSeries = DB::table($ventas)
-                ->whereNotIn('estado', ['ANULADA'])
-                ->whereBetween('fecha_venta', [$startYear, $endYear]);
-            if (!$canViewAllVentas && $uid > 0) {
-                $qYearSeries->where('vendedor_id', $uid);
-            }
+            $qYearSeries = $this->ventasComercialesQuery($ventas, $startYear, $endYear, $canViewAllVentas, $uid);
             $rowsYear = $qYearSeries
-                ->selectRaw("to_char(fecha_venta::date,'YYYY-MM') as m, coalesce(sum(total),0)::numeric as t")
+                ->selectRaw("to_char(fecha_venta::date,'YYYY-MM') as m, " . $this->ventasAmountSumSql() . " as t")
                 ->groupByRaw("to_char(fecha_venta::date,'YYYY-MM')")
                 ->orderByRaw("to_char(fecha_venta::date,'YYYY-MM')")
                 ->get();
@@ -196,12 +179,12 @@ final class DashboardController
 
             // Serie 30 días (pagadas)
             $q30 = DB::table($ventas)
-                ->where('estado', 'PAGADA')
+                ->whereRaw("upper(coalesce(estado,'')) = 'PAGADA'")
                 ->whereBetween('fecha_venta', [$start30, $end30]);
             if (!$canViewAllVentas && $uid > 0) {
                 $q30->where('vendedor_id', $uid);
             }
-            $rows30 = $q30->selectRaw("to_char(fecha_venta::date,'YYYY-MM-DD') as d, coalesce(sum(total),0)::numeric as t")
+            $rows30 = $q30->selectRaw("to_char(fecha_venta::date,'YYYY-MM-DD') as d, " . $this->ventasAmountSumSql() . " as t")
                 ->groupByRaw("fecha_venta::date")
                 ->orderByRaw("fecha_venta::date")
                 ->get();
@@ -226,7 +209,7 @@ final class DashboardController
                     ->join("{$ventas} as v", 'v.id', '=', 'vi.venta_id')
                     ->join("{$productos} as p", 'p.id', '=', 'vi.producto_id')
                     ->whereNotNull('vi.producto_id')
-                    ->whereNotIn('v.estado', ['ANULADA'])
+                    ->whereRaw("upper(coalesce(v.estado,'')) <> 'ANULADA'")
                     ->whereBetween('v.fecha_venta', [$startYear, $endYear]);
                 if (!$canViewAllVentas && $uid > 0) {
                     $productsQuery->where('v.vendedor_id', $uid);
@@ -305,17 +288,11 @@ final class DashboardController
      */
     private function documentosVentas(string $ventas, mixed $start, mixed $end, bool $canViewAllVentas, int $uid, string $periodo): array
     {
-        $query = DB::table($ventas)
-            ->whereNotIn('estado', ['ANULADA'])
-            ->whereBetween('fecha_venta', [$start, $end]);
+        $query = $this->ventasComercialesQuery($ventas, $start, $end, $canViewAllVentas, $uid);
 
-        if (!$canViewAllVentas && $uid > 0) {
-            $query->where('vendedor_id', $uid);
-        }
-
-        $case = "case when tipo_documento in ('FACTURA','BOLETA') then 'factura_boleta' else 'nota_venta' end";
+        $case = "case when upper(coalesce(tipo_documento,'')) in ('FACTURA','BOLETA') then 'factura_boleta' else 'nota_venta' end";
         $rows = $query
-            ->selectRaw("{$case} as grupo, count(*)::int as c, coalesce(sum(total),0)::numeric as t")
+            ->selectRaw("{$case} as grupo, count(*)::int as c, " . $this->ventasAmountSumSql() . " as t")
             ->groupByRaw($case)
             ->get();
 
@@ -338,6 +315,33 @@ final class DashboardController
         }
 
         return $data;
+    }
+
+    /**
+     * @param mixed $start
+     * @param mixed $end
+     */
+    private function ventasComercialesQuery(string $ventas, mixed $start, mixed $end, bool $canViewAllVentas, int $uid): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table($ventas)
+            ->whereRaw("upper(coalesce(estado,'')) <> 'ANULADA'")
+            ->whereBetween('fecha_venta', [$start, $end]);
+
+        if (!$canViewAllVentas && $uid > 0) {
+            $query->where('vendedor_id', $uid);
+        }
+
+        return $query;
+    }
+
+    private function ventasAggregate(\Illuminate\Database\Query\Builder $query): object
+    {
+        return $query->selectRaw('count(*)::int as c, ' . $this->ventasAmountSumSql() . ' as t')->first();
+    }
+
+    private function ventasAmountSumSql(): string
+    {
+        return 'round(coalesce(sum(coalesce(total_pen, total, 0)),0)::numeric, 2)';
     }
 
     /**
