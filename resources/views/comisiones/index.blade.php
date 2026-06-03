@@ -645,6 +645,7 @@
                                 venta_codigo: r.venta_codigo,
                                 cliente_id: r.cliente_id,
                                 cliente_nombre: r.cliente_nombre,
+                                cliente_nombre_ref: r.cliente_nombre_ref,
                                 cliente_razon: r.cliente_razon,
                                 cliente_razon_social: r.cliente_razon_social,
                                 cliente_telefono: r.cliente_telefono,
@@ -957,7 +958,7 @@
 
                 clienteVenta(row) {
                     if (!row) return 'Cliente no registrado';
-                    return row.cliente_nombre || row.cliente_razon_social || row.cliente_razon || row.cliente_telefono || (row.cliente_id ? `Cliente #${row.cliente_id}` : 'Cliente no registrado');
+                    return row.cliente_nombre || row.cliente_nombre_ref || row.cliente_razon_social || row.cliente_razon || row.cliente_telefono || (row.cliente_id ? `Cliente #${row.cliente_id}` : 'Cliente no registrado');
                 },
 
                 clienteDocumento(row) {

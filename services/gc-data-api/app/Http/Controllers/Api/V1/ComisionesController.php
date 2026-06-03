@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Rbac\RbacService;
+use App\Infrastructure\Db\SchemaIntrospector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ final class ComisionesController
 {
     public function __construct(
         private readonly RbacService $rbac,
+        private readonly SchemaIntrospector $schema,
     ) {
     }
 
@@ -25,10 +27,16 @@ final class ComisionesController
         $periodo = $request->query('periodo');
         $vendedorId = $request->query('vendedor_id');
         $qText = trim((string) $request->query('q', ''));
+        $clientes = (string) config('gc.tables.clientes', 'clientes');
+        $hasClientes = $this->schema->hasTable($clientes);
+
         $q = DB::table('comisiones as c')
             ->leftJoin('ventas as v', 'v.id', '=', 'c.venta_id')
             ->leftJoin('usuarios as u', 'u.id', '=', 'c.vendedor_id')
             ->orderBy('c.id', 'desc');
+        if ($hasClientes) {
+            $q->leftJoin($clientes . ' as cl', 'cl.id', '=', 'v.cliente_id');
+        }
         if (!$canViewAll && $uid > 0) {
             $q->where('c.vendedor_id', $uid);
         }
@@ -47,7 +55,7 @@ final class ComisionesController
                     ->orWhereRaw("lower(coalesce(to_char(v.fecha_venta::date, 'YYYY-MM'), c.periodo)) like ?", ["%{$qq}%"]);
             });
         }
-        $rows = $q->limit($limit)->get([
+        $select = [
             'c.id',
             'c.venta_id',
             'c.vendedor_id',
@@ -64,12 +72,28 @@ final class ComisionesController
             'c.created_at',
             'c.updated_at',
             'v.venta_codigo',
+            'v.cliente_id',
+            'v.cliente_razon',
+            'v.cliente_doc_tipo',
+            'v.cliente_doc_num',
             'v.fecha_venta',
             'v.igv_porcentaje',
             'v.total',
             'v.total_pen',
             'u.nombre as vendedor_nombre',
-        ]);
+        ];
+        if ($hasClientes) {
+            $select[] = 'cl.telefono as cliente_telefono';
+            $select[] = 'cl.nombre as cliente_nombre_ref';
+            $select[] = 'cl.razon_social as cliente_razon_social';
+            $select[] = 'cl.tipo_documento as cliente_tipo_documento';
+            $select[] = 'cl.numero_documento as cliente_numero_documento';
+            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl.nombre, ''), nullif(cl.razon_social, ''), nullif(cl.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+        } else {
+            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+        }
+
+        $rows = $q->limit($limit)->get($select);
         return response()->json(['ok' => true, 'data' => $rows]);
     }
 
@@ -99,16 +123,22 @@ final class ComisionesController
         $from = "{$periodo}-01";
         $to = date('Y-m-d', strtotime("{$from} +1 month"));
 
-        $q = DB::table('ventas')
-            ->leftJoin('comisiones as c', 'c.venta_id', '=', 'ventas.id')
-            ->where('ventas.estado', 'PAGADA')
-            ->where('ventas.fecha_venta', '>=', $from)
-            ->where('ventas.fecha_venta', '<', $to);
+        $clientes = (string) config('gc.tables.clientes', 'clientes');
+        $hasClientes = $this->schema->hasTable($clientes);
+
+        $q = DB::table('ventas as v')
+            ->leftJoin('comisiones as c', 'c.venta_id', '=', 'v.id')
+            ->where('v.estado', 'PAGADA')
+            ->where('v.fecha_venta', '>=', $from)
+            ->where('v.fecha_venta', '<', $to);
+        if ($hasClientes) {
+            $q->leftJoin($clientes . ' as cl', 'cl.id', '=', 'v.cliente_id');
+        }
 
         if (!$canViewAll) {
-            $q->where('ventas.vendedor_id', $uid);
+            $q->where('v.vendedor_id', $uid);
         } elseif (($isAdmin || $canViewAll) && $vendedorId) {
-            $q->where('ventas.vendedor_id', (int) $vendedorId);
+            $q->where('v.vendedor_id', (int) $vendedorId);
         }
 
         if (!$includePaid) {
@@ -121,17 +151,33 @@ final class ComisionesController
             });
         }
 
-        $rows = $q->select([
-            'ventas.id as id',
-            'ventas.venta_codigo',
-            'ventas.vendedor_id',
-            'ventas.tipo_documento',
-            'ventas.igv_porcentaje',
-            'ventas.moneda',
-            'ventas.total',
-            'ventas.total_pen',
-            'ventas.fecha_venta',
-        ])->orderBy('ventas.id', 'desc')->limit(500)->get();
+        $select = [
+            'v.id as id',
+            'v.venta_codigo',
+            'v.cliente_id',
+            'v.cliente_razon',
+            'v.cliente_doc_tipo',
+            'v.cliente_doc_num',
+            'v.vendedor_id',
+            'v.tipo_documento',
+            'v.igv_porcentaje',
+            'v.moneda',
+            'v.total',
+            'v.total_pen',
+            'v.fecha_venta',
+        ];
+        if ($hasClientes) {
+            $select[] = 'cl.telefono as cliente_telefono';
+            $select[] = 'cl.nombre as cliente_nombre_ref';
+            $select[] = 'cl.razon_social as cliente_razon_social';
+            $select[] = 'cl.tipo_documento as cliente_tipo_documento';
+            $select[] = 'cl.numero_documento as cliente_numero_documento';
+            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl.nombre, ''), nullif(cl.razon_social, ''), nullif(cl.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+        } else {
+            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+        }
+
+        $rows = $q->select($select)->orderBy('v.id', 'desc')->limit(500)->get();
 
         if ($rows->isEmpty()) {
             return response()->json([
@@ -186,6 +232,13 @@ final class ComisionesController
             $ventas[] = [
                 'id' => (int) $r->id,
                 'venta_codigo' => (string) $r->venta_codigo,
+                'cliente_id' => (int) ($r->cliente_id ?? 0),
+                'cliente_nombre' => (string) ($r->cliente_nombre ?? ''),
+                'cliente_razon' => (string) ($r->cliente_razon ?? ''),
+                'cliente_razon_social' => (string) ($r->cliente_razon_social ?? ''),
+                'cliente_telefono' => (string) ($r->cliente_telefono ?? ''),
+                'cliente_doc_tipo' => (string) ($r->cliente_doc_tipo ?? $r->cliente_tipo_documento ?? ''),
+                'cliente_doc_num' => (string) ($r->cliente_doc_num ?? $r->cliente_numero_documento ?? ''),
                 'vendedor_id' => (int) $r->vendedor_id,
                 'tipo_documento' => $tipoDoc,
                 'igv_porcentaje' => $igvPct,
