@@ -229,7 +229,11 @@
                                             </div>
                                             <div class="mt-0.5 text-[11px] text-slate-500" x-text="clienteDocumento(v) || clienteTelefono(v)"></div>
                                         </td>
-                                        <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
+                                        <td class="px-3 py-2">
+                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1"
+                                                  :class="docBadgeClass(v.tipo_documento)"
+                                                  x-text="docBadge(v.tipo_documento)"></span>
+                                        </td>
                                         <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
                                         <td class="px-3 py-2 text-right text-slate-700" x-text="money(v.instalador_fee_pen)"></td>
                                         <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.base_calculo_pen)"></td>
@@ -362,7 +366,11 @@
                                                     </div>
                                                     <div class="mt-0.5 text-[11px] text-slate-500" x-text="clienteDocumento(v) || clienteTelefono(v)"></div>
                                                 </td>
-                                                <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
+                                                <td class="px-3 py-2">
+                                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1"
+                                                          :class="docBadgeClass(v.tipo_documento)"
+                                                          x-text="docBadge(v.tipo_documento)"></span>
+                                                </td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.saldo_pen)"></td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.base_calculo_pen)"></td>
@@ -974,6 +982,22 @@
 
                 clienteTelefono(row) {
                     return row?.cliente_telefono ? `Tel. ${row.cliente_telefono}` : '';
+                },
+
+                docBadge(tipo) {
+                    const t = String(tipo || '').toUpperCase();
+                    if (t === 'FACTURA') return 'Factura';
+                    if (t === 'BOLETA') return 'Boleta';
+                    if (t === 'NOTA_VENTA') return 'Nota venta';
+                    return t || 'Doc.';
+                },
+
+                docBadgeClass(tipo) {
+                    const t = String(tipo || '').toUpperCase();
+                    if (t === 'FACTURA') return 'bg-violet-50 text-violet-700 ring-violet-200';
+                    if (t === 'BOLETA') return 'bg-sky-50 text-sky-700 ring-sky-200';
+                    if (t === 'NOTA_VENTA') return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+                    return 'bg-slate-100 text-slate-600 ring-slate-200';
                 },
 
                 fmtDate(v) {
