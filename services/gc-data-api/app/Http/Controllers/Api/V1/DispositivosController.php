@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Rbac\RbacService;
+use App\Infrastructure\Db\SchemaIntrospector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ final class DispositivosController
 {
     public function __construct(
         private readonly RbacService $rbac,
+        private readonly SchemaIntrospector $schema,
     ) {
     }
 
@@ -99,7 +101,11 @@ final class DispositivosController
             $payload['foto_thumb_url'] = $fotos[0]['thumb_url'] ?? null;
         }
 
-        $id = (int) DB::table('dispositivos_cliente')->insertGetId([
+        if (!$this->schema->hasTable('dispositivos_cliente')) {
+            return response()->json(['ok' => false, 'error' => 'La tabla de instalaciones no existe.'], 500);
+        }
+
+        $dispositivoRow = [
             'cliente_wa' => $payload['cliente_wa'] ?? null,
             'modelo_cerradura' => $payload['modelo_cerradura'] ?? null,
             'serial_cerradura' => $payload['serial_cerradura'] ?? null,
@@ -112,7 +118,9 @@ final class DispositivosController
             'gps_lng' => $payload['gps_lng'] ?? null,
             'notas_instalacion' => $payload['notas_instalacion'] ?? null,
             'creado_en' => now(),
-        ]);
+        ];
+        $dispositivoColumns = $this->schema->existingColumns('dispositivos_cliente', array_keys($dispositivoRow));
+        $id = (int) DB::table('dispositivos_cliente')->insertGetId(array_intersect_key($dispositivoRow, array_flip($dispositivoColumns)));
 
         if ($fotos->isEmpty() && !empty($payload['foto_url'])) {
             $fotos = collect([[
@@ -121,7 +129,17 @@ final class DispositivosController
             ]]);
         }
 
-        if ($fotos->isNotEmpty()) {
+        if ($fotos->isNotEmpty() && $this->schema->hasTable('dispositivo_fotos')) {
+            $fotoColumns = $this->schema->existingColumns('dispositivo_fotos', [
+                'dispositivo_id',
+                'url',
+                'thumb_url',
+                'tipo',
+                'tamano_bytes',
+                'mime',
+                'subido_por',
+                'created_at',
+            ]);
             $seen = [];
             $rows = [];
             foreach ($fotos as $foto) {
@@ -130,7 +148,7 @@ final class DispositivosController
                     continue;
                 }
                 $seen[$url] = true;
-                $rows[] = [
+                $row = [
                     'dispositivo_id' => $id,
                     'url' => $url,
                     'thumb_url' => $foto['thumb_url'] ?? null,
@@ -140,21 +158,32 @@ final class DispositivosController
                     'subido_por' => $uid,
                     'created_at' => now(),
                 ];
+                $row = array_intersect_key($row, array_flip($fotoColumns));
+                if (isset($row['dispositivo_id'], $row['url'])) {
+                    $rows[] = $row;
+                }
             }
             if ($rows !== []) {
                 DB::table('dispositivo_fotos')->insert($rows);
             }
         }
 
-        DB::table('audit_log')->insert([
-            'usuario_id' => $uid,
-            'accion' => 'dispositivo_created',
-            'entidad' => 'dispositivos_cliente',
-            'entidad_id' => (string) $id,
-            'payload' => DB::raw("'{}'::jsonb"),
-            'ip' => $request->ip(),
-            'created_at' => now(),
-        ]);
+        if ($this->schema->hasTable('audit_log')) {
+            $auditRow = [
+                'usuario_id' => $uid,
+                'accion' => 'dispositivo_created',
+                'entidad' => 'dispositivos_cliente',
+                'entidad_id' => (string) $id,
+                'payload' => DB::raw("'{}'::jsonb"),
+                'ip' => $request->ip(),
+                'created_at' => now(),
+            ];
+            $auditColumns = $this->schema->existingColumns('audit_log', array_keys($auditRow));
+            $auditRow = array_intersect_key($auditRow, array_flip($auditColumns));
+            if (isset($auditRow['usuario_id'], $auditRow['accion'])) {
+                DB::table('audit_log')->insert($auditRow);
+            }
+        }
 
         $fresh = DB::table('dispositivos_cliente as dc')
             ->leftJoin('usuarios as u', 'u.id', '=', 'dc.instalador_id')

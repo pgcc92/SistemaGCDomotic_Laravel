@@ -1226,6 +1226,48 @@
                     return `${base.getFullYear()}-${pad(base.getMonth()+1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`;
                 },
 
+                normalizeDateTimeForSubmit(value) {
+                    const raw = String(value || '').trim();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    if (!raw) return '';
+
+                    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+                    if (iso) {
+                        return `${iso[1]}-${iso[2]}-${iso[3]}T${iso[4]}:${iso[5]}`;
+                    }
+
+                    const cleaned = raw
+                        .toLowerCase()
+                        .replace(/\s+/g, ' ')
+                        .replace(/\ba\.?\s*m\.?\b/g, 'am')
+                        .replace(/\bp\.?\s*m\.?\b/g, 'pm');
+                    const local = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?:\s*(am|pm))?$/);
+                    if (local) {
+                        let hour = parseInt(local[4], 10);
+                        const meridian = local[6] || '';
+                        if (meridian === 'pm' && hour < 12) hour += 12;
+                        if (meridian === 'am' && hour === 12) hour = 0;
+                        return `${local[3]}-${pad(local[2])}-${pad(local[1])}T${pad(hour)}:${pad(local[5])}`;
+                    }
+
+                    const d = new Date(raw.replace(' ', 'T'));
+                    if (!Number.isNaN(d.getTime())) {
+                        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    }
+
+                    return raw;
+                },
+
+                responseError(data, fallback = 'No se pudo completar la operación.') {
+                    if (data?.error) return String(data.error);
+                    if (data?.errors && typeof data.errors === 'object') {
+                        const first = Object.values(data.errors).flat().find(Boolean);
+                        if (first) return String(first);
+                    }
+                    if (data?.message) return String(data.message);
+                    return fallback;
+                },
+
                 openNewForDate(isoDate = null) {
                     this.resetForm();
                     if (isoDate) {
@@ -1525,7 +1567,7 @@
                     this.completeSaving = true;
                     try {
                         const fd = new FormData();
-                        fd.append('terminado_at', this.complete.terminado_at || '');
+                        fd.append('terminado_at', this.normalizeDateTimeForSubmit(this.complete.terminado_at || ''));
                         if (this.complete.notas) fd.append('notas', this.complete.notas);
                         if (this.complete.gps_lat) fd.append('gps_lat', this.complete.gps_lat);
                         if (this.complete.gps_lng) fd.append('gps_lng', this.complete.gps_lng);
@@ -1543,7 +1585,7 @@
                         });
 
                         if (res.data?.ok !== true) {
-                            this.completeError = res.data?.error || 'No se pudo confirmar.';
+                            this.completeError = this.responseError(res.data, 'No se pudo confirmar.');
                             window.GCToast?.error?.('Agenda', this.completeError);
                             return;
                         }
@@ -1557,7 +1599,7 @@
                         this.$dispatch('close-modal', 'agenda-completar');
                         await this.reload();
                     } catch (e) {
-                        const msg = e?.response?.data?.error || e?.response?.data?.message || e?.message || 'No se pudo confirmar.';
+                        const msg = this.responseError(e?.response?.data, e?.message || 'No se pudo confirmar.');
                         this.completeError = msg;
                         window.GCToast?.error?.('Agenda', msg);
                     } finally {

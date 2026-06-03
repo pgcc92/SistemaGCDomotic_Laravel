@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Infrastructure\Remote\RemoteDataClient;
 use App\Services\UploadService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -130,6 +131,16 @@ final class AgendaController
             'fotos.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'gps_lat' => ['nullable', 'numeric'],
             'gps_lng' => ['nullable', 'numeric'],
+        ], [
+            'terminado_at.required' => 'Ingresa la hora de término del servicio.',
+            'terminado_at.date' => 'La hora de término no tiene un formato válido.',
+            'foto.mimes' => 'La evidencia debe ser JPG, PNG o WEBP.',
+            'foto.max' => 'Cada imagen debe pesar máximo 10 MB.',
+            'fotos.max' => 'Puedes subir máximo 5 imágenes.',
+            'fotos.*.mimes' => 'Todas las evidencias deben ser JPG, PNG o WEBP.',
+            'fotos.*.max' => 'Cada imagen debe pesar máximo 10 MB.',
+            'gps_lat.numeric' => 'La latitud GPS no tiene un formato válido.',
+            'gps_lng.numeric' => 'La longitud GPS no tiene un formato válido.',
         ]);
 
         try {
@@ -175,7 +186,11 @@ final class AgendaController
         $fotoUrl = $fotosPayload[0]['url'] ?? null;
         $fotoThumb = $fotosPayload[0]['thumb_url'] ?? null;
 
-        $terminadoAt = (string) $payload['terminado_at'];
+        try {
+            $terminadoAt = Carbon::parse((string) $payload['terminado_at'])->format('Y-m-d H:i:s');
+        } catch (Throwable) {
+            return response()->json(['ok' => false, 'error' => 'La hora de término no tiene un formato válido.'], 422);
+        }
         $notaExtra = trim((string) ($payload['notas'] ?? ''));
         $titulo = (string) ($agenda['titulo'] ?? '');
         $tipo = (string) ($agenda['tipo'] ?? '');

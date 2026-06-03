@@ -460,21 +460,21 @@ final class RemoteDataClient
     public function agendaItem(int $id): array
     {
         $res = $this->api->request()->get("/api/v1/agenda/{$id}");
-        return $res->successful() ? (array) $res->json('data', []) : ['error' => $res->json('error')];
+        return $res->successful() ? (array) $res->json('data', []) : ['error' => $this->apiError($res, 'No se pudo obtener la agenda.')];
     }
 
     /** @param array<string,mixed> $payload */
     public function agendaCrear(array $payload): array
     {
         $res = $this->api->request()->post('/api/v1/agenda', $payload);
-        return $res->successful() ? (array) $res->json('data', []) : ['error' => $res->json('error')];
+        return $res->successful() ? (array) $res->json('data', []) : ['error' => $this->apiError($res, 'No se pudo crear la agenda.')];
     }
 
     /** @param array<string,mixed> $payload */
     public function agendaActualizar(int $id, array $payload): array
     {
         $res = $this->api->request()->put("/api/v1/agenda/{$id}", $payload);
-        return $res->successful() ? (array) $res->json('data', []) : ['error' => $res->json('error')];
+        return $res->successful() ? (array) $res->json('data', []) : ['error' => $this->apiError($res, 'No se pudo actualizar la agenda.')];
     }
 
     public function agendaEliminar(int $id): bool
@@ -517,7 +517,7 @@ final class RemoteDataClient
     public function crearDispositivo(array $payload): array
     {
         $res = $this->api->request()->post('/api/v1/dispositivos', $payload);
-        return $res->successful() ? (array) $res->json('data', []) : ['error' => $res->json('error')];
+        return $res->successful() ? (array) $res->json('data', []) : ['error' => $this->apiError($res, 'No se pudo registrar la evidencia de instalación.')];
     }
 
     /** @return array<int,mixed> */
@@ -588,5 +588,28 @@ final class RemoteDataClient
             'changes' => $changes,
         ]);
         return $res->successful();
+    }
+
+    private function apiError(mixed $res, string $fallback): string
+    {
+        $error = $res->json('error');
+        if (is_string($error) && trim($error) !== '') {
+            return trim($error);
+        }
+
+        $message = $res->json('message');
+        if (is_string($message) && trim($message) !== '') {
+            return trim($message);
+        }
+
+        $errors = $res->json('errors');
+        if (is_array($errors)) {
+            $first = collect($errors)->flatten()->first();
+            if (is_string($first) && trim($first) !== '') {
+                return trim($first);
+            }
+        }
+
+        return $fallback;
     }
 }
