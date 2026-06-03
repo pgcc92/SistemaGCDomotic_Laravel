@@ -16,6 +16,29 @@
         x-init="init()"
         class="space-y-6"
     >
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="gc-card p-5 bg-gradient-to-br from-emerald-50 to-white">
+                <div class="text-xs font-semibold text-emerald-700">Clientes activos</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900" x-text="rows.length"></div>
+                <div class="mt-1 text-xs text-slate-500">Registros visibles.</div>
+            </div>
+            <div class="gc-card p-5 bg-gradient-to-br from-violet-50 to-white">
+                <div class="text-xs font-semibold text-violet-700">Empresas</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900" x-text="empresaCount"></div>
+                <div class="mt-1 text-xs text-slate-500">RUC o razón social.</div>
+            </div>
+            <div class="gc-card p-5 bg-gradient-to-br from-sky-50 to-white">
+                <div class="text-xs font-semibold text-sky-700">Documentados</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900" x-text="docCount"></div>
+                <div class="mt-1 text-xs text-slate-500">Con tipo y número.</div>
+            </div>
+            <div class="gc-card p-5 bg-gradient-to-br from-amber-50 to-white">
+                <div class="text-xs font-semibold text-amber-700">Con email</div>
+                <div class="mt-2 text-2xl font-semibold text-slate-900" x-text="emailCount"></div>
+                <div class="mt-1 text-xs text-slate-500">Contactabilidad adicional.</div>
+            </div>
+        </div>
+
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="relative w-full sm:max-w-md">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -24,7 +47,7 @@
                     </svg>
                 </div>
                 <input x-model.debounce.200ms="q" @input="applySearch()"
-                       placeholder="Buscar por nombre o teléfono…"
+                       placeholder="Buscar por cualquier dato del cliente…"
                        class="w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-primary focus:ring-primary" />
             </div>
             <div class="flex items-center gap-2">
@@ -35,52 +58,54 @@
             </div>
         </div>
 
-        <x-table>
-            <thead class="bg-slate-50/60">
-                <tr class="text-left text-xs font-semibold text-slate-600">
-                    <th class="px-4 py-3">Teléfono</th>
-                    <th class="px-4 py-3">Cliente</th>
-                    <th class="px-4 py-3">Documento</th>
-                    <th class="px-4 py-3">Email</th>
-                    <th class="px-4 py-3">Actualizado</th>
-                </tr>
-            </thead>
-            <tbody>
-                <template x-for="row in pagedRows" :key="row.id">
-                    <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                        @click="openDetail(row.id)">
-                        <td class="px-4 py-3 font-medium text-slate-900" x-text="row.telefono"></td>
-                        <td class="px-4 py-3">
-                            <div class="text-sm font-medium text-slate-900" x-text="row.nombre || '—'"></div>
-	                            <template x-if="row.razon_social">
-	                                <div class="mt-1">
-	                                    <span class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-200"
-	                                          x-text="row.razon_social"></span>
-	                                </div>
-	                            </template>
-                        </td>
-                        <td class="px-4 py-3">
-	                            <template x-if="row.tipo_documento && row.numero_documento">
-	                                <div class="inline-flex items-center gap-2">
-	                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset"
-	                                          :class="(row.tipo_documento || '').toUpperCase() === 'RUC' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-sky-50 text-sky-700 ring-sky-200'"
-	                                          x-text="row.tipo_documento"></span>
-	                                    <span class="text-sm text-slate-700" x-text="row.numero_documento"></span>
-	                                </div>
-	                            </template>
-                            <template x-if="!(row.tipo_documento && row.numero_documento)">
-                                <span class="text-sm text-slate-400">—</span>
-                            </template>
-                        </td>
-                        <td class="px-4 py-3 text-slate-700" x-text="row.email || '—'"></td>
-                        <td class="px-4 py-3 text-slate-600" x-text="shortDateTime(row.updated_at)"></td>
+        <div class="gc-card p-5">
+            <x-table class="border-0 shadow-none">
+                <thead class="bg-slate-50/60">
+                    <tr class="text-left text-xs font-semibold text-slate-600">
+                        <th class="px-4 py-3">Teléfono</th>
+                        <th class="px-4 py-3">Cliente</th>
+                        <th class="px-4 py-3">Documento</th>
+                        <th class="px-4 py-3">Email</th>
+                        <th class="px-4 py-3">Actualizado</th>
                     </tr>
-                </template>
-                <tr x-show="!loading && filteredRows.length === 0">
-                    <td class="px-4 py-10 text-center text-slate-500" colspan="5">No hay clientes.</td>
-                </tr>
-            </tbody>
-        </x-table>
+                </thead>
+                <tbody>
+                    <template x-for="row in pagedRows" :key="row.id">
+                        <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                            @click="openDetail(row.id)">
+                            <td class="px-4 py-3 font-medium text-slate-900" x-text="row.telefono"></td>
+                            <td class="px-4 py-3">
+                                <div class="text-sm font-medium text-slate-900" x-text="row.nombre || '—'"></div>
+                                <template x-if="row.razon_social">
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-200"
+                                              x-text="row.razon_social"></span>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="px-4 py-3">
+                                <template x-if="row.tipo_documento && row.numero_documento">
+                                    <div class="inline-flex items-center gap-2">
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset"
+                                              :class="(row.tipo_documento || '').toUpperCase() === 'RUC' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-sky-50 text-sky-700 ring-sky-200'"
+                                              x-text="row.tipo_documento"></span>
+                                        <span class="text-sm text-slate-700" x-text="row.numero_documento"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!(row.tipo_documento && row.numero_documento)">
+                                    <span class="text-sm text-slate-400">—</span>
+                                </template>
+                            </td>
+                            <td class="px-4 py-3 text-slate-700" x-text="row.email || '—'"></td>
+                            <td class="px-4 py-3 text-slate-600" x-text="shortDateTime(row.updated_at)"></td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loading && filteredRows.length === 0">
+                        <td class="px-4 py-10 text-center text-slate-500" colspan="5">No hay clientes.</td>
+                    </tr>
+                </tbody>
+            </x-table>
+        </div>
 
         <x-pagination page="page" pages="pages"></x-pagination>
 
@@ -368,6 +393,18 @@
                     const q = (this.q || '').trim().toLowerCase();
                     if (!q) return this.rows;
                     return this.rows.filter((r) => this.rowSearchText(r).includes(q));
+                },
+
+                get empresaCount() {
+                    return (this.rows || []).filter((r) => r.razon_social || String(r.tipo_documento || '').toUpperCase() === 'RUC').length;
+                },
+
+                get docCount() {
+                    return (this.rows || []).filter((r) => r.tipo_documento && r.numero_documento).length;
+                },
+
+                get emailCount() {
+                    return (this.rows || []).filter((r) => r.email).length;
                 },
 
                 rowSearchText(r) {

@@ -36,42 +36,70 @@ final class VentasController
         $limit = max(1, min(200, (int) $request->query('limit', 50)));
         $qText = trim((string) $request->query('q', ''));
 
-        $q = DB::table($table)->orderBy('id', 'desc');
+        $clientes = (string) config('gc.tables.clientes', 'clientes');
+        $hasClientes = $this->schema->hasTable($clientes);
+
+        $q = DB::table($table . ' as v')->orderBy('v.id', 'desc');
+        if ($hasClientes) {
+            $q->leftJoin($clientes . ' as c', 'c.id', '=', 'v.cliente_id')
+                ->select([
+                    'v.*',
+                    'c.telefono as cliente_telefono',
+                    'c.nombre as cliente_nombre',
+                    'c.razon_social as cliente_razon_social',
+                    'c.tipo_documento as cliente_tipo_documento',
+                    'c.numero_documento as cliente_numero_documento',
+                    'c.email as cliente_email',
+                    'c.direccion as cliente_direccion_ref',
+                ]);
+        } else {
+            $q->select('v.*');
+        }
 
         // Filtros
         if (!$canViewAll && $uid > 0) {
-            $q->where('vendedor_id', $uid);
+            $q->where('v.vendedor_id', $uid);
         }
 
         if ($tipo = $request->query('tipo_documento')) {
-            $q->where('tipo_documento', $tipo);
+            $q->where('v.tipo_documento', $tipo);
         }
         if ($estado = $request->query('estado')) {
-            $q->where('estado', $estado);
+            $q->where('v.estado', $estado);
         }
         if ($sucursal = $request->query('sucursal_id')) {
-            $q->where('sucursal_id', $sucursal);
+            $q->where('v.sucursal_id', $sucursal);
         }
         if (($isAdmin || $canViewAll) && ($v = $request->query('vendedor_id'))) {
-            $q->where('vendedor_id', $v);
+            $q->where('v.vendedor_id', $v);
         }
         if ($from = $request->query('from')) {
-            $q->where('fecha_venta', '>=', $from);
+            $q->where('v.fecha_venta', '>=', $from);
         }
         if ($to = $request->query('to')) {
-            $q->where('fecha_venta', '<=', $to);
+            $q->where('v.fecha_venta', '<=', $to);
         }
 
         if ($qText !== '') {
             $qq = '%' . mb_strtolower($qText) . '%';
-            $q->where(function ($w) use ($qq) {
-                $w->orWhereRaw('lower(coalesce(venta_codigo,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(ticket_id,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(tipo_documento,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(serie_documento,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(numero_documento,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(cliente_doc_num,\'\')) like ?', [$qq])
-                    ->orWhereRaw('lower(coalesce(cliente_razon,\'\')) like ?', [$qq]);
+            $q->where(function ($w) use ($qq, $hasClientes) {
+                $w->orWhereRaw('lower(coalesce(v.venta_codigo,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.ticket_id,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.tipo_documento,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.serie_documento,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.numero_documento,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.cliente_doc_num,\'\')) like ?', [$qq])
+                    ->orWhereRaw('lower(coalesce(v.cliente_razon,\'\')) like ?', [$qq]);
+
+                if ($hasClientes) {
+                    $w->orWhereRaw('lower(coalesce(c.telefono,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.nombre,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.razon_social,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.tipo_documento,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.numero_documento,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.email,\'\')) like ?', [$qq])
+                        ->orWhereRaw('lower(coalesce(c.direccion,\'\')) like ?', [$qq]);
+                }
             });
         }
 
@@ -108,11 +136,17 @@ final class VentasController
         $pagosRows = $this->schema->hasTable($pagos)
             ? DB::table($pagos)->where('venta_id', $row->id)->orderBy('id')->get()
             : collect();
+        $clientes = (string) config('gc.tables.clientes', 'clientes');
+        $cliente = null;
+        if ($this->schema->hasTable($clientes) && (int) ($row->cliente_id ?? 0) > 0) {
+            $cliente = DB::table($clientes)->where('id', (int) $row->cliente_id)->first();
+        }
 
         return response()->json([
             'ok' => true,
             'data' => [
                 'venta' => $row,
+                'cliente' => $cliente,
                 'items' => $items,
                 'pagos' => $pagosRows,
             ],

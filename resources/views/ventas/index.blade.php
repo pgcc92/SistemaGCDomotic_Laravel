@@ -52,7 +52,7 @@
                     </svg>
                 </div>
                 <input x-model.debounce.200ms="q" @input="applySearch()"
-                       placeholder="Buscar por código o documento…"
+                       placeholder="Buscar por venta, cliente, documento o teléfono…"
                        class="w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-primary focus:ring-primary" />
             </div>
             <div class="flex items-center gap-2">
@@ -68,6 +68,7 @@
                 <thead class="bg-slate-50/60">
                     <tr class="text-left text-xs font-semibold text-slate-600">
                         <th class="px-4 py-3">Código</th>
+                        <th class="px-4 py-3">Cliente</th>
                         <th class="px-4 py-3">Documento</th>
                         <th class="px-4 py-3 text-right">Total</th>
                         <th class="px-4 py-3">Estado</th>
@@ -78,7 +79,23 @@
                     <template x-for="row in pagedRows" :key="row.id">
                         <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
                             @click="openDetail(row.id)">
-                            <td class="px-4 py-3 font-medium text-slate-900" x-text="row.venta_codigo"></td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-900" x-text="row.venta_codigo"></div>
+                                <div class="mt-1 text-xs text-slate-500" x-text="shortDateTime(row.fecha_venta)"></div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-sm font-semibold text-slate-900" x-text="clienteVenta(row)"></div>
+                                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                    <template x-if="clienteVentaDocumento(row)">
+                                        <span class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200"
+                                              x-text="clienteVentaDocumento(row)"></span>
+                                    </template>
+                                    <template x-if="clienteVentaTelefono(row)">
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
+                                              x-text="clienteVentaTelefono(row)"></span>
+                                    </template>
+                                </div>
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="text-slate-900 font-medium" x-text="row.tipo_documento"></div>
                                 <div class="text-xs text-slate-500" x-text="docLabel(row)"></div>
@@ -89,11 +106,11 @@
                                       :class="estadoClass(row.estado)"
                                       x-text="row.estado || '—'"></span>
                             </td>
-                            <td class="px-4 py-3 text-slate-600" x-text="row.fecha_venta || '—'"></td>
+                            <td class="px-4 py-3 text-slate-600" x-text="shortDateTime(row.fecha_venta)"></td>
                         </tr>
                     </template>
                     <tr x-show="!loading && filteredRows.length === 0">
-                        <td class="px-4 py-10 text-center text-slate-500" colspan="5">No hay ventas.</td>
+                        <td class="px-4 py-10 text-center text-slate-500" colspan="6">No hay ventas.</td>
                     </tr>
                 </tbody>
             </x-table>
@@ -147,6 +164,20 @@
 
                 <div class="grid gap-6 lg:grid-cols-12">
                     <div class="lg:col-span-4 space-y-4">
+                        <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50/70 to-white p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-xs font-semibold text-slate-900">Cliente</div>
+                                <span class="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
+                                      x-text="detailClienteBadge()"></span>
+                            </div>
+                            <div class="mt-3 text-sm font-semibold text-slate-900" x-text="detailClienteNombre()"></div>
+                            <dl class="mt-3 space-y-2 text-sm">
+                                <div class="flex justify-between gap-3"><dt class="text-slate-500">Teléfono</dt><dd class="text-slate-900" x-text="detailClienteTelefono() || '—'"></dd></div>
+                                <div class="flex justify-between gap-3"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900" x-text="detailClienteDocumento() || '—'"></dd></div>
+                                <div class="grid grid-cols-1 gap-1"><dt class="text-slate-500">Dirección</dt><dd class="text-slate-900" x-text="detailClienteDireccion() || '—'"></dd></div>
+                                <div class="grid grid-cols-1 gap-1"><dt class="text-slate-500">Email</dt><dd class="text-slate-900" x-text="detailClienteEmail() || '—'"></dd></div>
+                            </dl>
+                        </div>
                         <div class="rounded-2xl border border-slate-200 bg-white p-5">
                             <div class="text-xs font-semibold text-slate-900">Resumen</div>
                             <dl class="mt-3 space-y-2 text-sm">
@@ -703,6 +734,7 @@
                     page: 0,
 	                    perPage: 25,
 	                    detail: null,
+	                    detailCliente: null,
 	                    detailItems: [],
 	                    detailPagos: [],
 	                    detailError: '',
@@ -909,11 +941,7 @@
                     get filteredRows() {
                         const q = (this.q || '').trim().toLowerCase();
                         if (!q) return this.rows;
-                        return this.rows.filter(r =>
-                            String(r.venta_codigo || '').toLowerCase().includes(q) ||
-                            String(r.serie_documento || '').toLowerCase().includes(q) ||
-                            String(r.numero_documento || '').toLowerCase().includes(q)
-                        );
+                        return this.rows.filter((r) => this.rowSearchText(r).includes(q));
                     },
 
                     get pages() {
@@ -971,6 +999,7 @@
                     async openDetail(id) {
                         this.detailError = '';
                         this.detail = null;
+                        this.detailCliente = null;
                         this.detailItems = [];
                         this.detailPagos = [];
                         this.actionError = '';
@@ -981,6 +1010,7 @@
                             const res = await window.axios.get(this.urls.show(id), { headers: { 'Accept': 'application/json' } });
                             const data = res.data?.data || null;
                             this.detail = data?.venta ? (data.venta || null) : data;
+                            this.detailCliente = data?.cliente || null;
                             this.detailItems = data?.items || [];
                             this.detailPagos = data?.pagos || [];
                             if (res.data?.ok !== true) {
@@ -1117,7 +1147,48 @@
                         } finally {
                             this.savingAction = false;
                         }
-	                    },
+                    },
+
+                    clienteVenta(row) {
+                        if (!row) return 'Cliente no registrado';
+                        return row.cliente_nombre || row.cliente_razon_social || row.cliente_razon || (row.cliente_id ? `Cliente #${row.cliente_id}` : 'Cliente no registrado');
+                    },
+
+                    clienteVentaTelefono(row) {
+                        return row?.cliente_telefono || '';
+                    },
+
+                    clienteVentaDocumento(row) {
+                        const tipo = row?.cliente_tipo_documento || row?.cliente_doc_tipo || '';
+                        const num = row?.cliente_numero_documento || row?.cliente_doc_num || '';
+                        return tipo && num ? `${tipo} ${num}` : (num || '');
+                    },
+
+                    detailClienteNombre() {
+                        return this.detailCliente?.nombre || this.detailCliente?.razon_social || this.detail?.cliente_razon || this.clienteVenta(this.detail);
+                    },
+
+                    detailClienteTelefono() {
+                        return this.detailCliente?.telefono || this.detail?.cliente_telefono || '';
+                    },
+
+                    detailClienteDocumento() {
+                        const tipo = this.detailCliente?.tipo_documento || this.detail?.cliente_doc_tipo || '';
+                        const num = this.detailCliente?.numero_documento || this.detail?.cliente_doc_num || '';
+                        return tipo && num ? `${tipo} ${num}` : (num || '');
+                    },
+
+                    detailClienteDireccion() {
+                        return this.detailCliente?.direccion || this.detail?.cliente_direccion || this.detail?.cliente_direccion_ref || '';
+                    },
+
+                    detailClienteEmail() {
+                        return this.detailCliente?.email || this.detail?.cliente_email || '';
+                    },
+
+                    detailClienteBadge() {
+                        return this.detailCliente?.tipo_documento || this.detail?.cliente_doc_tipo || 'Cliente';
+                    },
 
 	                    get filteredProductos() {
 	                        const q = (this.prodQ || '').trim().toLowerCase();
