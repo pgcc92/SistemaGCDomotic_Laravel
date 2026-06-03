@@ -13,14 +13,14 @@
 @endphp
 
 @if(count($mobileItems))
-    <nav class="gc-safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden"
+    <nav class="gc-safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden"
          aria-label="Navegación rápida">
         <div class="mx-auto flex max-w-lg items-stretch px-2 pt-2">
             @foreach($mobileItems as $item)
                 @php($isMobileActive = request()->routeIs($item['active']))
                 <a href="{{ route($item['route']) }}"
-                   class="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold {{ $isMobileActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800' }}">
-                    <span class="h-1.5 w-1.5 rounded-full {{ $isMobileActive ? 'bg-primary' : 'bg-slate-300' }}"></span>
+                   class="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold {{ $isMobileActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100' }}">
+                    <span class="h-1.5 w-1.5 rounded-full {{ $isMobileActive ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700' }}"></span>
                     <span class="truncate">{{ $item['label'] }}</span>
                 </a>
             @endforeach

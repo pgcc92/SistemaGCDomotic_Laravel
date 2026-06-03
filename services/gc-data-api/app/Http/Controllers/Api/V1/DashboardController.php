@@ -87,6 +87,10 @@ final class DashboardController
             'productos_mas_vendidos' => [],
             'productos_menos_vendidos' => [],
         ];
+        $documentos = [
+            'actual' => $this->emptyDocumentosVentas($today->format('Y-m')),
+            'anterior' => $this->emptyDocumentosVentas($today->copy()->subMonthNoOverflow()->format('Y-m')),
+        ];
 
         if ($this->schema->hasTable($ventas)) {
             // Total del mes (todo lo vendido, excluye ANULADA).
@@ -114,6 +118,8 @@ final class DashboardController
             $kpis['ventas_mes_variacion_pct'] = $previousMonthTotal > 0
                 ? round((($kpis['ventas_mes_total'] - $previousMonthTotal) / $previousMonthTotal) * 100, 1)
                 : null;
+            $documentos['actual'] = $this->documentosVentas($ventas, $startMonth, $endMonth, $canViewAllVentas, $uid, $today->format('Y-m'));
+            $documentos['anterior'] = $this->documentosVentas($ventas, $startPreviousMonth, $endPreviousMonth, $canViewAllVentas, $uid, $today->copy()->subMonthNoOverflow()->format('Y-m'));
 
             $qPag = DB::table($ventas)
                 ->where('estado', 'PAGADA')
@@ -287,7 +293,74 @@ final class DashboardController
                 'kpis' => $kpis,
                 'series' => $series,
                 'rankings' => $rankings,
+                'documentos' => $documentos,
             ],
         ]);
+    }
+
+    /**
+     * @param mixed $start
+     * @param mixed $end
+     * @return array<string,mixed>
+     */
+    private function documentosVentas(string $ventas, mixed $start, mixed $end, bool $canViewAllVentas, int $uid, string $periodo): array
+    {
+        $query = DB::table($ventas)
+            ->whereNotIn('estado', ['ANULADA'])
+            ->whereBetween('fecha_venta', [$start, $end]);
+
+        if (!$canViewAllVentas && $uid > 0) {
+            $query->where('vendedor_id', $uid);
+        }
+
+        $case = "case when tipo_documento in ('FACTURA','BOLETA') then 'factura_boleta' else 'nota_venta' end";
+        $rows = $query
+            ->selectRaw("{$case} as grupo, count(*)::int as c, coalesce(sum(total),0)::numeric as t")
+            ->groupByRaw($case)
+            ->get();
+
+        $data = $this->emptyDocumentosVentas($periodo);
+        foreach ($rows as $row) {
+            $group = (string) ($row->grupo ?? '');
+            if (!isset($data[$group])) {
+                continue;
+            }
+            $data[$group]['count'] = (int) ($row->c ?? 0);
+            $data[$group]['total'] = (float) ($row->t ?? 0);
+            $data['total_count'] += (int) ($row->c ?? 0);
+            $data['total'] += (float) ($row->t ?? 0);
+        }
+
+        foreach (['factura_boleta', 'nota_venta'] as $group) {
+            $data[$group]['mix_pct'] = $data['total'] > 0
+                ? round(((float) $data[$group]['total'] / (float) $data['total']) * 100, 1)
+                : 0.0;
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function emptyDocumentosVentas(string $periodo): array
+    {
+        return [
+            'periodo' => $periodo,
+            'total' => 0.0,
+            'total_count' => 0,
+            'factura_boleta' => [
+                'label' => 'Factura / Boleta',
+                'total' => 0.0,
+                'count' => 0,
+                'mix_pct' => 0.0,
+            ],
+            'nota_venta' => [
+                'label' => 'Nota de venta',
+                'total' => 0.0,
+                'count' => 0,
+                'mix_pct' => 0.0,
+            ],
+        ];
     }
 }

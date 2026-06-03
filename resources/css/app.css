@@ -15,6 +15,10 @@
         -webkit-text-size-adjust: 100%;
     }
 
+    .dark {
+        color-scheme: dark;
+    }
+
     body {
         min-height: 100vh;
         min-height: 100dvh;
@@ -24,6 +28,25 @@
 @layer components {
     .gc-card {
         @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
+    }
+
+    .dark .gc-card {
+        @apply border-slate-800/90 bg-slate-900/80 shadow-none;
+    }
+
+    .dark input,
+    .dark select,
+    .dark textarea {
+        @apply border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500;
+    }
+
+    .dark input[type="checkbox"],
+    .dark input[type="radio"] {
+        @apply border-slate-600 bg-slate-900;
+    }
+
+    .dark table {
+        @apply text-slate-200;
     }
 
     /* Preline helper: remove-element animation for toasts */

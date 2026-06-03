@@ -1,5 +1,5 @@
 @php
-    $active = fn ($pattern) => request()->routeIs($pattern) ? 'bg-primary/10 text-primary ring-1 ring-primary/15' : 'text-slate-700 hover:bg-slate-100';
+    $active = fn ($pattern) => request()->routeIs($pattern) ? 'bg-primary/10 text-primary ring-1 ring-primary/15' : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100';
     $perms = app(\App\Infrastructure\Remote\RemoteRbacClient::class)->myPermissions();
     $can = function (string $modulo, string $accion = 'ver') use ($perms): bool {
         return (bool) (($perms['*']['*'] ?? false) || ($perms[$modulo][$accion] ?? false));
@@ -46,8 +46,8 @@
     @endif
 
     @if($anyOps)
-    <div class="rounded-2xl border border-slate-200 bg-white p-2">
-        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+    <div class="rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900/70">
+        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
                 @click="ops = !ops">
             <span class="uppercase tracking-wide">Operación</span>
             <svg class="h-4 w-4 text-slate-400 transition" :class="ops ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
@@ -90,8 +90,8 @@
     @endif
 
     @if($anyInv)
-    <div class="rounded-2xl border border-slate-200 bg-white p-2">
-        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+    <div class="rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900/70">
+        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
                 @click="inv = !inv">
             <span class="uppercase tracking-wide">Inventario</span>
             <svg class="h-4 w-4 text-slate-400 transition" :class="inv ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
@@ -119,8 +119,8 @@
     @endif
 
     @if($anyAdmin)
-    <div class="rounded-2xl border border-slate-200 bg-white p-2">
-        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+    <div class="rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900/70">
+        <button type="button" class="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
                 @click="admin = !admin">
             <span class="uppercase tracking-wide">Administración</span>
             <svg class="h-4 w-4 text-slate-400 transition" :class="admin ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
