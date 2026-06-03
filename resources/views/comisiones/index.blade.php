@@ -193,10 +193,11 @@
                         </div>
                     </div>
                     <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-                        <table class="min-w-[900px] w-full text-sm">
+                        <table class="min-w-[1000px] w-full text-sm">
                             <thead class="bg-slate-50/70 text-xs font-semibold text-slate-600">
                                 <tr class="text-left">
                                     <th class="px-3 py-2">Venta</th>
+                                    <th class="px-3 py-2">Cliente</th>
                                     <th class="px-3 py-2">Doc</th>
                                     <th class="px-3 py-2 text-right">Total</th>
                                     <th class="px-3 py-2 text-right">Desc. inst.</th>
@@ -213,6 +214,10 @@
                                             <div class="font-medium text-slate-900" x-text="v.venta_codigo || ('#'+v.id)"></div>
                                             <div class="text-[11px] text-slate-500" x-text="fmtDate(v.fecha_venta)"></div>
                                         </td>
+                                        <td class="px-3 py-2">
+                                            <div class="max-w-[220px] truncate text-slate-900" x-text="clienteVenta(v)"></div>
+                                            <div class="text-[11px] text-slate-500" x-text="clienteDocumento(v)"></div>
+                                        </td>
                                         <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
                                         <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
                                         <td class="px-3 py-2 text-right text-slate-700" x-text="money(v.instalador_fee_pen)"></td>
@@ -223,7 +228,7 @@
                                     </tr>
                                 </template>
                                 <tr x-show="!pagoBreakdown.ventas || pagoBreakdown.ventas.length === 0">
-                                    <td class="px-3 py-6 text-center text-slate-500" colspan="8">Sin detalle aún.</td>
+                                    <td class="px-3 py-6 text-center text-slate-500" colspan="9">Sin detalle aún.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -338,13 +343,14 @@
                                 <span x-text="`${(periodoResult.ventas || []).length} venta(s) PAGADA(s).`"></span>
                             </div>
                             <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-                                <table class="min-w-[900px] w-full text-sm">
+                                <table class="min-w-[1000px] w-full text-sm">
                                     <thead class="bg-slate-50/70 text-xs font-semibold text-slate-600">
                                         <tr class="text-left">
                                             <th class="px-3 py-2 w-10">
                                                 <span class="sr-only">Aplicar</span>
                                             </th>
                                             <th class="px-3 py-2">Venta</th>
+                                            <th class="px-3 py-2">Cliente</th>
                                             <th class="px-3 py-2">Doc</th>
                                             <th class="px-3 py-2 text-right">Total</th>
                                             <th class="px-3 py-2 text-right">Saldo</th>
@@ -366,6 +372,10 @@
                                                     <div class="font-medium text-slate-900" x-text="v.venta_codigo || ('#'+v.id)"></div>
                                                     <div class="text-[11px] text-slate-500" x-text="v.fecha_venta || '—'"></div>
                                                 </td>
+                                                <td class="px-3 py-2">
+                                                    <div class="max-w-[220px] truncate text-slate-900" x-text="clienteVenta(v)"></div>
+                                                    <div class="text-[11px] text-slate-500" x-text="clienteDocumento(v)"></div>
+                                                </td>
                                                 <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.saldo_pen)"></td>
@@ -376,7 +386,7 @@
                                             </tr>
                                         </template>
                                         <tr x-show="(periodoResult.ventas || []).length === 0">
-                                            <td class="px-3 py-6 text-center text-slate-500" colspan="9">No hay ventas pagadas en el periodo.</td>
+                                            <td class="px-3 py-6 text-center text-slate-500" colspan="10">No hay ventas pagadas en el periodo.</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -633,6 +643,13 @@
                             return {
                                 id: Number(r.venta_id || r.id),
                                 venta_codigo: r.venta_codigo,
+                                cliente_id: r.cliente_id,
+                                cliente_nombre: r.cliente_nombre,
+                                cliente_razon: r.cliente_razon,
+                                cliente_razon_social: r.cliente_razon_social,
+                                cliente_telefono: r.cliente_telefono,
+                                cliente_doc_tipo: r.cliente_doc_tipo || r.cliente_tipo_documento,
+                                cliente_doc_num: r.cliente_doc_num || r.cliente_numero_documento,
                                 fecha_venta: r.fecha_venta,
                                 tipo_documento: r.tipo_documento,
                                 total_pen: Math.round(total * 100) / 100,
@@ -936,6 +953,17 @@
                     if (!n) return '';
                     const u = (this.usuarios || []).find(x => Number(x.id) === n);
                     return u ? (u.nombre ?? u.name ?? '') : '';
+                },
+
+                clienteVenta(row) {
+                    if (!row) return 'Cliente no registrado';
+                    return row.cliente_nombre || row.cliente_razon_social || row.cliente_razon || row.cliente_telefono || (row.cliente_id ? `Cliente #${row.cliente_id}` : 'Cliente no registrado');
+                },
+
+                clienteDocumento(row) {
+                    const tipo = row?.cliente_tipo_documento || row?.cliente_doc_tipo || '';
+                    const num = row?.cliente_numero_documento || row?.cliente_doc_num || '';
+                    return tipo && num ? `${tipo} ${num}` : (num || '');
                 },
 
                 fmtDate(v) {
