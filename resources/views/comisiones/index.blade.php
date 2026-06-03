@@ -17,68 +17,75 @@
             }
         })"
         x-init="init()"
-        class="space-y-6"
+        class="space-y-4"
     >
-        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                <div class="flex items-center justify-between">
-                    <div class="text-sm font-semibold text-slate-900">Top vendedores (vendido)</div>
-                    <div class="text-xs text-slate-500">Periodo: <span class="font-medium" x-text="topPeriodoLabel"></span></div>
+        <div class="rounded-lg border border-slate-200 bg-white">
+            <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="text-sm font-semibold text-slate-900">Panel de comisiones</div>
+                        <x-badge variant="slate">Periodo <span class="ml-1" x-text="topPeriodoLabel"></span></x-badge>
+                    </div>
+                    <div class="mt-0.5 text-xs text-slate-500">Pagos agrupados por vendedor y periodo.</div>
                 </div>
-                <div class="mt-3 space-y-2">
-                    <template x-for="(r, idx) in topVendidos.slice(0,5)" :key="r.key">
-                        <div class="flex items-center gap-3">
-                            <div class="h-7 w-7 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold" x-text="idx+1"></div>
-                            <div class="min-w-0 flex-1">
-                                <div class="text-sm font-medium text-slate-900 truncate" x-text="r.vendedor_nombre"></div>
-                                <div class="text-[11px] text-slate-500" x-text="`${r.ventas_count} venta(s)`"></div>
-                            </div>
-                            <div class="text-sm font-semibold text-slate-900" x-text="money(r.total_vendido_pen)"></div>
-                        </div>
-                    </template>
-                    <div class="text-sm text-slate-500 py-6 text-center" x-show="topVendidos.length===0">Sin datos.</div>
+                <div class="grid grid-cols-3 gap-3 text-right sm:min-w-[420px]">
+                    <div>
+                        <div class="text-[11px] text-slate-500">Vendido</div>
+                        <div class="text-sm font-semibold text-slate-900" x-text="money(topSummary.total_vendido_pen)"></div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] text-slate-500">Comisión</div>
+                        <div class="text-sm font-semibold text-slate-900" x-text="money(topSummary.total_comision_pen)"></div>
+                    </div>
+                    <div>
+                        <div class="text-[11px] text-slate-500">Vendedores</div>
+                        <div class="text-sm font-semibold text-slate-900" x-text="topSummary.vendedores_activos"></div>
+                    </div>
                 </div>
             </div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                <div class="flex items-center justify-between">
-                    <div class="text-sm font-semibold text-slate-900">Top vendedores (comisión)</div>
-                    <div class="text-xs text-slate-500">Periodo: <span class="font-medium" x-text="topPeriodoLabel"></span></div>
-                </div>
-                <div class="mt-3 space-y-2">
-                    <template x-for="(r, idx) in topComision.slice(0,5)" :key="r.key">
-                        <div class="flex items-center gap-3">
-                            <div class="h-7 w-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xs font-bold" x-text="idx+1"></div>
-                            <div class="min-w-0 flex-1">
-                                <div class="text-sm font-medium text-slate-900 truncate" x-text="r.vendedor_nombre"></div>
-                                <div class="text-[11px] text-slate-500" x-text="`${r.comisiones_count} comisión(es)`"></div>
+            <div class="grid grid-cols-1 divide-y divide-slate-200 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+                <div class="p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                        <div class="text-xs font-semibold uppercase tracking-normal text-slate-500">Top vendido</div>
+                        <div class="text-[11px] text-slate-400">5 mejores</div>
+                    </div>
+                    <div class="space-y-1">
+                        <template x-for="(r, idx) in topVendidos.slice(0,5)" :key="r.key">
+                            <div class="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
+                                <div class="text-xs font-semibold text-slate-500" x-text="idx+1"></div>
+                                <div class="min-w-0">
+                                    <div class="truncate text-sm font-medium text-slate-900" x-text="r.vendedor_nombre"></div>
+                                    <div class="text-[11px] text-slate-500" x-text="`${r.ventas_count} venta(s)`"></div>
+                                </div>
+                                <div class="text-sm font-semibold text-slate-900" x-text="money(r.total_vendido_pen)"></div>
                             </div>
-                            <div class="text-sm font-semibold text-slate-900" x-text="money(r.importe_comision_pen)"></div>
-                        </div>
-                    </template>
-                    <div class="text-sm text-slate-500 py-6 text-center" x-show="topComision.length===0">Sin datos.</div>
+                        </template>
+                        <div class="py-3 text-center text-sm text-slate-500" x-show="topVendidos.length===0">Sin datos.</div>
+                    </div>
                 </div>
-            </div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                <div class="text-sm font-semibold text-slate-900">Resumen del periodo</div>
-                <div class="mt-1 text-xs text-slate-500">Visión rápida del mes en curso (según data cargada).</div>
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                    <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                        <div class="text-[11px] text-slate-500">Total vendido</div>
-                        <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(topSummary.total_vendido_pen)"></div>
+                <div class="p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                        <div class="text-xs font-semibold uppercase tracking-normal text-slate-500">Top comisión</div>
+                        <div class="text-[11px] text-slate-400">5 mejores</div>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                        <div class="text-[11px] text-slate-500">Total comisión</div>
-                        <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(topSummary.total_comision_pen)"></div>
-                    </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 col-span-2">
-                        <div class="text-[11px] text-slate-500">Vendedores activos</div>
-                        <div class="mt-1 text-sm font-semibold text-slate-900" x-text="topSummary.vendedores_activos"></div>
+                    <div class="space-y-1">
+                        <template x-for="(r, idx) in topComision.slice(0,5)" :key="r.key">
+                            <div class="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
+                                <div class="text-xs font-semibold text-slate-500" x-text="idx+1"></div>
+                                <div class="min-w-0">
+                                    <div class="truncate text-sm font-medium text-slate-900" x-text="r.vendedor_nombre"></div>
+                                    <div class="text-[11px] text-slate-500" x-text="`${r.comisiones_count} comisión(es)`"></div>
+                                </div>
+                                <div class="text-sm font-semibold text-slate-900" x-text="money(r.importe_comision_pen)"></div>
+                            </div>
+                        </template>
+                        <div class="py-3 text-center text-sm text-slate-500" x-show="topComision.length===0">Sin datos.</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="relative w-full sm:max-w-md">
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                     <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -86,14 +93,14 @@
                     </svg>
                 </div>
                 <input x-model.debounce.200ms="q" @input="page=0"
-                       placeholder="Buscar por venta, vendedor, estado o periodo…"
-                       class="w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-primary focus:ring-primary" />
+                       placeholder="Buscar vendedor, estado o periodo"
+                       class="w-full rounded-md border-slate-200 bg-white py-2 pl-10 pr-3 text-sm shadow-sm focus:border-primary focus:ring-primary" />
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50" @click="$dispatch('open-modal','comisiones-ventas-periodo'); resetPeriodo()">
+                <button type="button" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50" @click="$dispatch('open-modal','comisiones-ventas-periodo'); resetPeriodo()">
                     Ventas por periodo
                 </button>
-                <a class="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+                <a class="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90"
                    :href="exportUrl()"
                    target="_blank">
                     Export CSV
@@ -104,29 +111,29 @@
         <x-table>
             <thead class="bg-slate-50/60">
                 <tr class="text-left text-xs font-semibold text-slate-600">
-                    <th class="px-4 py-3">Vendedor</th>
-                    <th class="px-4 py-3">Periodo</th>
-                    <th class="px-4 py-3 text-right">Total vendido</th>
-                    <th class="px-4 py-3 text-right">Importe pagado</th>
-                    <th class="px-4 py-3">Estado</th>
-                    <th class="px-4 py-3">Actualizado</th>
+                    <th class="px-4 py-2.5">Vendedor</th>
+                    <th class="px-4 py-2.5">Periodo</th>
+                    <th class="px-4 py-2.5 text-right">Vendido</th>
+                    <th class="px-4 py-2.5 text-right">Comisión</th>
+                    <th class="px-4 py-2.5">Estado</th>
+                    <th class="px-4 py-2.5">Actualizado</th>
                 </tr>
             </thead>
             <tbody>
                 <template x-for="row in pagedRows" :key="row.key">
                     <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" @click="openPago(row)">
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-2.5">
                             <div class="font-medium text-slate-900" x-text="row.vendedor_nombre"></div>
                             <div class="mt-0.5 text-xs text-slate-500" x-text="`${row.ventas_count} venta(s) • ${row.comisiones_count} comisión(es)`"></div>
                         </td>
-                        <td class="px-4 py-3 text-slate-700" x-text="row.periodo"></td>
-                        <td class="px-4 py-3 text-right text-slate-900" x-text="money(row.total_vendido_pen)"></td>
-                        <td class="px-4 py-3 text-right font-semibold text-slate-900" x-text="money(row.importe_comision_pen)"></td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-2.5 text-slate-700" x-text="row.periodo"></td>
+                        <td class="px-4 py-2.5 text-right text-slate-900" x-text="money(row.total_vendido_pen)"></td>
+                        <td class="px-4 py-2.5 text-right font-semibold text-slate-900" x-text="money(row.importe_comision_pen)"></td>
+                        <td class="px-4 py-2.5">
                             <template x-if="row.estado_ui === 'PENDIENTE'"><x-badge variant="amber">Pendiente</x-badge></template>
                             <template x-if="row.estado_ui === 'CANCELADO'"><x-badge variant="emerald">Cancelado</x-badge></template>
                         </td>
-                        <td class="px-4 py-3 text-slate-600" x-text="fmtDate(row.updated_at)"></td>
+                        <td class="px-4 py-2.5 text-slate-600" x-text="fmtDate(row.updated_at)"></td>
                     </tr>
                 </template>
                 <tr x-show="!loading && filteredRows.length === 0">
@@ -139,7 +146,7 @@
 
         <!-- Detalle de pago -->
         <x-modal name="comisiones-pago-detalle" maxWidth="6xl">
-            <div class="border-b border-slate-200 px-6 py-4 flex items-start justify-between gap-3">
+            <div class="border-b border-slate-200 px-4 py-3 flex items-start justify-between gap-3">
                 <div>
                     <div class="text-sm font-semibold text-slate-900">Pago de comisiones</div>
                     <div class="mt-0.5 text-xs text-slate-500" x-text="pagoSel ? `${pagoSel.vendedor_nombre} • ${pagoSel.periodo}` : '—'"></div>
@@ -150,49 +157,48 @@
                     </svg>
                 </x-icon-button>
             </div>
-            <div class="p-6 space-y-4">
+            <div class="p-4 space-y-3">
                 <template x-if="pagoError">
-                    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" x-text="pagoError"></div>
+                    <div class="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" x-text="pagoError"></div>
                 </template>
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-4">
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <div class="rounded-lg border border-slate-200 bg-white p-3">
                         <div class="text-xs text-slate-500">Total vendido</div>
-                        <div class="mt-1 text-lg font-semibold text-slate-900" x-text="money(pagoSel?.total_vendido_pen)"></div>
+                        <div class="mt-1 text-base font-semibold text-slate-900" x-text="money(pagoSel?.total_vendido_pen)"></div>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-lg border border-slate-200 bg-white p-3">
                         <div class="text-xs text-slate-500">Desc. instalador</div>
-                        <div class="mt-1 text-lg font-semibold text-slate-900" x-text="money(pagoBreakdown?.instalador_fee_total_pen)"></div>
-                        <div class="mt-0.5 text-[11px] text-slate-500">Total descontado en el periodo.</div>
+                        <div class="mt-1 text-base font-semibold text-slate-900" x-text="money(pagoBreakdown?.instalador_fee_total_pen)"></div>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-lg border border-slate-200 bg-white p-3">
                         <div class="text-xs text-slate-500">Importe comisión</div>
-                        <div class="mt-1 text-lg font-semibold text-slate-900" x-text="money(pagoSel?.importe_comision_pen)"></div>
+                        <div class="mt-1 text-base font-semibold text-slate-900" x-text="money(pagoSel?.importe_comision_pen)"></div>
                     </div>
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-lg border border-slate-200 bg-white p-3">
                         <div class="text-xs text-slate-500">Estado</div>
-                        <div class="mt-2">
+                        <div class="mt-1.5">
                             <template x-if="pagoSel?.estado_ui === 'PENDIENTE'"><x-badge variant="amber">Pendiente</x-badge></template>
                             <template x-if="pagoSel?.estado_ui === 'CANCELADO'"><x-badge variant="emerald">Cancelado</x-badge></template>
                         </div>
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="rounded-lg border border-slate-200 bg-white">
+                    <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <div class="text-sm font-semibold text-slate-900">Desagregado</div>
                             <div class="mt-0.5 text-xs text-slate-500">Ventas PAGADAS del periodo (descuento instalador + base/IGV).</div>
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button"
-                                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 :disabled="pagoSel?.estado_ui === 'CANCELADO'"
                                 @click="$dispatch('open-modal','comisiones-ventas-periodo'); prefillPeriodoFromPago()">
                                 Recalcular / pagar
                             </button>
                         </div>
                     </div>
-                    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+                    <div class="overflow-x-auto">
                         <table class="min-w-[1000px] w-full text-sm">
                             <thead class="bg-slate-50/70 text-xs font-semibold text-slate-600">
                                 <tr class="text-left">
@@ -200,7 +206,7 @@
                                     <th class="px-3 py-2">Cliente</th>
                                     <th class="px-3 py-2">Doc</th>
                                     <th class="px-3 py-2 text-right">Total</th>
-                                    <th class="px-3 py-2 text-right">Desc. inst.</th>
+                                    <th class="px-3 py-2 text-right">Desc.</th>
                                     <th class="px-3 py-2 text-right">Base</th>
                                     <th class="px-3 py-2 text-right">IGV</th>
                                     <th class="px-3 py-2 text-right">%</th>
@@ -238,9 +244,9 @@
         </x-modal>
 
         <!-- Ventas por periodo -->
-        <x-modal name="comisiones-ventas-periodo" maxWidth="4xl">
+        <x-modal name="comisiones-ventas-periodo" maxWidth="6xl">
             <form class="divide-y divide-slate-200" @submit.prevent="submitPeriodo()">
-                <div class="px-6 py-4 flex items-start justify-between gap-3">
+                <div class="px-4 py-3 flex items-start justify-between gap-3">
                     <div>
                         <div class="text-sm font-semibold text-slate-900">Ventas por periodo</div>
                         <div class="mt-0.5 text-xs text-slate-500">Calcula base y comisión en PEN.</div>
@@ -251,63 +257,26 @@
                         </svg>
                     </x-icon-button>
                 </div>
-                <div class="px-6 py-5 space-y-4">
+                <div class="px-4 py-4 space-y-3">
                     <template x-if="periodoError">
-                        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" x-text="periodoError"></div>
+                        <div class="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" x-text="periodoError"></div>
                     </template>
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-3 lg:grid-cols-4">
                         <div>
                             <label class="text-xs font-medium text-slate-700">Periodo (YYYY-MM)</label>
-                            <input x-model="periodo.periodo" placeholder="2026-05" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" required />
+                            <input x-model="periodo.periodo" placeholder="2026-05" class="mt-1 w-full rounded-md border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" required />
                         </div>
                         <div>
-                            <label class="text-xs font-medium text-slate-700">Descuento instalador (PEN)</label>
-                            <input x-model="periodo.instalador_fee" type="number" min="0" step="0.01" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" placeholder="Ej: 180" />
-                            <div class="mt-1 text-[11px] text-slate-500">Se descuenta del total antes de calcular comisión.</div>
+                            <label class="text-xs font-medium text-slate-700">Desc. instalador</label>
+                            <input x-model="periodo.instalador_fee" type="number" min="0" step="0.01" class="mt-1 w-full rounded-md border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" placeholder="Ej: 180" />
                         </div>
                         <div>
-                            <label class="text-xs font-medium text-slate-700">Porcentaje (opcional)</label>
-                            <input x-model="periodo.porcentaje" type="number" min="0" step="0.01" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" placeholder="Auto por regla si vacío" />
-                            <div class="mt-1 text-[11px] text-slate-500">Si lo dejas vacío, usa la regla vigente del vendedor.</div>
+                            <label class="text-xs font-medium text-slate-700">Porcentaje</label>
+                            <input x-model="periodo.porcentaje" type="number" min="0" step="0.01" class="mt-1 w-full rounded-md border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" placeholder="Auto" />
                         </div>
-                    </div>
-                    <template x-if="periodoResult && (periodoResult.ventas || []).length">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <div class="text-sm font-semibold text-slate-900">Aplicación del descuento</div>
-                                    <div class="mt-0.5 text-xs text-slate-600">
-                                        Marca qué documentos se <span class="font-semibold text-slate-900">incluyen</span> en el pago del periodo. Los desmarcados no suman comisión.
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50" @click="setApplyAll(true)">Aplicar a todos</button>
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50" @click="setApplyAll(false)">Quitar a todos</button>
-                                    <button type="button" class="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90" :disabled="loadingPeriodo" @click="recalcularConSeleccion()">
-                                        <span x-text="loadingPeriodo ? 'Recalculando…' : 'Recalcular'"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
-                                    <div class="text-slate-500">Seleccionadas</div>
-                                    <div class="mt-1 font-semibold text-slate-900" x-text="`${selectedVentaIds().length} / ${(periodoResult.ventas||[]).length}`"></div>
-                                </div>
-                                <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
-                                    <div class="text-slate-500">Descuento total aplicado</div>
-                                    <div class="mt-1 font-semibold text-slate-900" x-text="money(periodoResult.instalador_fee_total_pen)"></div>
-                                </div>
-                                <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs">
-                                    <div class="text-slate-500">Base (PEN)</div>
-                                    <div class="mt-1 font-semibold text-slate-900" x-text="money(periodoResult.base_pen)"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div class="sm:col-span-2">
-                            <label class="text-xs font-medium text-slate-700">Vendedor (admin)</label>
-                            <select x-model="periodo.vendedor_id" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary">
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Vendedor</label>
+                            <select x-model="periodo.vendedor_id" class="mt-1 w-full rounded-md border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary">
                                 <option value="">(Todos / mi usuario)</option>
                                 <template x-for="u in usuarios" :key="u.id">
                                     <option :value="String(u.id)" x-text="`${u.nombre ?? u.name ?? ('Usuario '+u.id)} (#${u.id})`"></option>
@@ -317,32 +286,39 @@
                     </div>
 
                     <template x-if="periodoResult">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                                <div>
-                                    <div class="text-xs text-slate-500">Saldo (PEN)</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(periodoResult.saldo_pen)"></div>
+                        <div class="rounded-lg border border-slate-200 bg-white">
+                            <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+                                <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 xl:min-w-[720px]">
+                                    <div>
+                                        <div class="text-xs text-slate-500">Seleccionadas</div>
+                                        <div class="mt-0.5 text-sm font-semibold text-slate-900" x-text="`${selectedVentaIds().length} / ${(periodoResult.ventas||[]).length}`"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">Saldo</div>
+                                        <div class="mt-0.5 text-sm font-semibold text-slate-900" x-text="money(periodoResult.saldo_pen)"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">Base</div>
+                                        <div class="mt-0.5 text-sm font-semibold text-slate-900" x-text="money(periodoResult.base_pen)"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">IGV</div>
+                                        <div class="mt-0.5 text-sm font-semibold text-slate-900" x-text="money(periodoResult.igv_pen)"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">Comisión</div>
+                                        <div class="mt-0.5 text-sm font-semibold text-slate-900" x-text="money(periodoResult.monto_comision_pen)"></div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div class="text-xs text-slate-500">Base (PEN)</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(periodoResult.base_pen)"></div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-slate-500">IGV (PEN)</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(periodoResult.igv_pen)"></div>
-                                </div>
-                                <div>
-                                    <div class="text-xs text-slate-500">Comisión (PEN)</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="money(periodoResult.monto_comision_pen)"></div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button type="button" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50" @click="setApplyAll(true)">Aplicar a todos</button>
+                                    <button type="button" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs hover:bg-slate-50" @click="setApplyAll(false)">Quitar todos</button>
+                                    <button type="button" class="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90" :disabled="loadingPeriodo" @click="recalcularConSeleccion()">
+                                        <span x-text="loadingPeriodo ? 'Recalculando...' : 'Recalcular'"></span>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                                <x-badge variant="slate">Periodo: <span class="ml-1" x-text="periodoResult.periodo"></span></x-badge>
-                                <x-badge variant="slate">Instalador: <span class="ml-1" x-text="money(periodoResult.instalador_fee_pen)"></span></x-badge>
-                                <x-badge variant="slate">%: <span class="ml-1" x-text="`${periodoResult.porcentaje || 0}%`"></span></x-badge>
-                                <span x-text="`${(periodoResult.ventas || []).length} venta(s) PAGADA(s).`"></span>
-                            </div>
-                            <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+                            <div class="overflow-x-auto">
                                 <table class="min-w-[1000px] w-full text-sm">
                                     <thead class="bg-slate-50/70 text-xs font-semibold text-slate-600">
                                         <tr class="text-left">
@@ -394,21 +370,21 @@
                         </div>
                     </template>
                 </div>
-                <div class="px-6 py-4 flex items-center justify-end gap-2">
-                    <div class="mr-auto flex items-center gap-2">
+                <div class="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <div class="mr-auto flex w-full items-center gap-2 sm:w-auto">
                         <label class="text-xs font-medium text-slate-600">Referencia (opcional)</label>
-                        <input x-model="pagar.referencia" class="w-56 rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" placeholder="Ej: depósito / op." />
+                        <input x-model="pagar.referencia" class="w-full rounded-md border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary sm:w-56" placeholder="Ej: depósito / op." />
                     </div>
-                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" @click="$dispatch('close-modal','comisiones-ventas-periodo')">Cerrar</button>
-                    <button class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+                    <button type="button" class="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50" @click="$dispatch('close-modal','comisiones-ventas-periodo')">Cerrar</button>
+                    <button class="rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
                             :disabled="loadingPeriodo"
                             @click="submitPeriodo()">
-                        <span x-text="loadingPeriodo ? 'Calculando…' : 'Calcular'"></span>
+                        <span x-text="loadingPeriodo ? 'Calculando...' : 'Calcular'"></span>
                     </button>
-                    <button class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+                    <button class="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
                             :disabled="savingPagar || !periodo.periodo"
                             @click="liquidarDesdePeriodo()">
-                        <span x-text="savingPagar ? 'Registrando pago…' : 'Generar pago'"></span>
+                        <span x-text="savingPagar ? 'Registrando...' : 'Generar pago'"></span>
                     </button>
                 </div>
             </form>
