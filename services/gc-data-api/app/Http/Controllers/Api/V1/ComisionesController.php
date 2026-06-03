@@ -29,13 +29,17 @@ final class ComisionesController
         $qText = trim((string) $request->query('q', ''));
         $clientes = (string) config('gc.tables.clientes', 'clientes');
         $hasClientes = $this->schema->hasTable($clientes);
+        $tickets = (string) config('gc.tables.tickets', 'tickets');
+        $hasTickets = $this->schema->hasTable($tickets);
+        $agenda = (string) config('gc.tables.agenda_instalaciones', 'agenda_instalaciones');
+        $hasAgenda = $this->schema->hasTable($agenda);
 
         $q = DB::table('comisiones as c')
             ->leftJoin('ventas as v', 'v.id', '=', 'c.venta_id')
             ->leftJoin('usuarios as u', 'u.id', '=', 'c.vendedor_id')
             ->orderBy('c.id', 'desc');
         if ($hasClientes) {
-            $this->joinClientesVenta($q, $clientes);
+            $this->joinClientesVenta($q, $clientes, $hasTickets ? $tickets : null, $hasAgenda ? $agenda : null);
         }
         if (!$canViewAll && $uid > 0) {
             $q->where('c.vendedor_id', $uid);
@@ -83,7 +87,7 @@ final class ComisionesController
             'u.nombre as vendedor_nombre',
         ];
         if ($hasClientes) {
-            array_push($select, ...$this->clienteSelectsVenta());
+            array_push($select, ...$this->clienteSelectsVenta($hasTickets, $hasAgenda));
         } else {
             $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
         }
@@ -120,6 +124,10 @@ final class ComisionesController
 
         $clientes = (string) config('gc.tables.clientes', 'clientes');
         $hasClientes = $this->schema->hasTable($clientes);
+        $tickets = (string) config('gc.tables.tickets', 'tickets');
+        $hasTickets = $this->schema->hasTable($tickets);
+        $agenda = (string) config('gc.tables.agenda_instalaciones', 'agenda_instalaciones');
+        $hasAgenda = $this->schema->hasTable($agenda);
 
         $q = DB::table('ventas as v')
             ->leftJoin('comisiones as c', 'c.venta_id', '=', 'v.id')
@@ -127,7 +135,7 @@ final class ComisionesController
             ->where('v.fecha_venta', '>=', $from)
             ->where('v.fecha_venta', '<', $to);
         if ($hasClientes) {
-            $this->joinClientesVenta($q, $clientes);
+            $this->joinClientesVenta($q, $clientes, $hasTickets ? $tickets : null, $hasAgenda ? $agenda : null);
         }
 
         if (!$canViewAll) {
@@ -162,7 +170,7 @@ final class ComisionesController
             'v.fecha_venta',
         ];
         if ($hasClientes) {
-            array_push($select, ...$this->clienteSelectsVenta());
+            array_push($select, ...$this->clienteSelectsVenta($hasTickets, $hasAgenda));
         } else {
             $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
         }
@@ -229,6 +237,7 @@ final class ComisionesController
                 'cliente_telefono' => (string) ($r->cliente_telefono ?? ''),
                 'cliente_doc_tipo' => (string) ($r->cliente_doc_tipo ?? $r->cliente_tipo_documento ?? ''),
                 'cliente_doc_num' => (string) ($r->cliente_doc_num ?? $r->cliente_numero_documento ?? ''),
+                'cliente_fuente' => (string) ($r->cliente_fuente ?? ''),
                 'vendedor_id' => (int) $r->vendedor_id,
                 'tipo_documento' => $tipoDoc,
                 'igv_porcentaje' => $igvPct,
@@ -292,25 +301,115 @@ final class ComisionesController
         return $rule ? (float) ($rule->porcentaje ?? 0) : 0.0;
     }
 
-    private function joinClientesVenta(\Illuminate\Database\Query\Builder $q, string $clientes): void
+    private function joinClientesVenta(\Illuminate\Database\Query\Builder $q, string $clientes, ?string $tickets, ?string $agenda): void
     {
         $q->leftJoin($clientes . ' as cl_id', 'cl_id.id', '=', 'v.cliente_id')
             ->leftJoin($clientes . ' as cl_doc', function ($join) {
                 $join->on('cl_doc.numero_documento', '=', 'v.cliente_doc_num')
                     ->whereRaw("coalesce(v.cliente_doc_num, '') <> ''");
             });
+
+        if ($tickets !== null) {
+            $q->leftJoin($tickets . ' as tk_v', 'tk_v.ticket_id', '=', 'v.ticket_id')
+                ->leftJoin($clientes . ' as cl_ticket_wa', function ($join) {
+                    $join->on('cl_ticket_wa.telefono', '=', 'tk_v.cliente_wa')
+                        ->whereRaw("coalesce(tk_v.cliente_wa, '') <> ''");
+                });
+        }
+
+        if ($agenda !== null) {
+            $agendaByVenta = DB::table($agenda)
+                ->selectRaw('venta_id, max(cliente_id) as cliente_id, max(cliente_wa) as cliente_wa, max(ticket_id) as ticket_id')
+                ->whereNotNull('venta_id')
+                ->groupBy('venta_id');
+
+            $agendaByTicket = DB::table($agenda)
+                ->selectRaw('ticket_id, max(cliente_id) as cliente_id, max(cliente_wa) as cliente_wa')
+                ->whereNotNull('ticket_id')
+                ->groupBy('ticket_id');
+
+            $q->leftJoinSub($agendaByVenta, 'ag_v', 'ag_v.venta_id', '=', 'v.id')
+                ->leftJoinSub($agendaByTicket, 'ag_t', 'ag_t.ticket_id', '=', 'v.ticket_id')
+                ->leftJoin($clientes . ' as cl_ag_v_id', 'cl_ag_v_id.id', '=', 'ag_v.cliente_id')
+                ->leftJoin($clientes . ' as cl_ag_v_wa', function ($join) {
+                    $join->on('cl_ag_v_wa.telefono', '=', 'ag_v.cliente_wa')
+                        ->whereRaw("coalesce(ag_v.cliente_wa, '') <> ''");
+                })
+                ->leftJoin($clientes . ' as cl_ag_t_id', 'cl_ag_t_id.id', '=', 'ag_t.cliente_id')
+                ->leftJoin($clientes . ' as cl_ag_t_wa', function ($join) {
+                    $join->on('cl_ag_t_wa.telefono', '=', 'ag_t.cliente_wa')
+                        ->whereRaw("coalesce(ag_t.cliente_wa, '') <> ''");
+                });
+
+            if ($tickets !== null) {
+                $q->leftJoin($tickets . ' as tk_ag_v', 'tk_ag_v.ticket_id', '=', 'ag_v.ticket_id')
+                    ->leftJoin($clientes . ' as cl_ag_ticket_wa', function ($join) {
+                        $join->on('cl_ag_ticket_wa.telefono', '=', 'tk_ag_v.cliente_wa')
+                            ->whereRaw("coalesce(tk_ag_v.cliente_wa, '') <> ''");
+                    });
+            }
+        }
     }
 
     /** @return array<int,\Illuminate\Contracts\Database\Query\Expression|string> */
-    private function clienteSelectsVenta(): array
+    private function clienteSelectsVenta(bool $hasTickets, bool $hasAgenda): array
     {
+        $telefono = ['cl_id.telefono', 'cl_doc.telefono'];
+        $nombre = ["nullif(cl_id.nombre, '')", "nullif(cl_doc.nombre, '')"];
+        $razon = ["nullif(cl_id.razon_social, '')", "nullif(cl_doc.razon_social, '')"];
+        $tipoDoc = ["nullif(cl_id.tipo_documento, '')", "nullif(cl_doc.tipo_documento, '')"];
+        $numDoc = ["nullif(v.cliente_doc_num, '')", "nullif(cl_id.numero_documento, '')", "nullif(cl_doc.numero_documento, '')"];
+        $display = [
+            "nullif(v.cliente_razon, '')",
+            "nullif(cl_id.nombre, '')",
+            "nullif(cl_id.razon_social, '')",
+            "nullif(cl_doc.nombre, '')",
+            "nullif(cl_doc.razon_social, '')",
+        ];
+        $sourceCases = [
+            "when nullif(v.cliente_razon, '') is not null then 'venta'",
+            "when cl_id.id is not null then 'cliente_id'",
+            "when cl_doc.id is not null then 'documento'",
+        ];
+
+        if ($hasTickets) {
+            array_push($telefono, 'cl_ticket_wa.telefono', 'tk_v.cliente_wa');
+            array_push($nombre, "nullif(cl_ticket_wa.nombre, '')");
+            array_push($razon, "nullif(cl_ticket_wa.razon_social, '')");
+            array_push($tipoDoc, "nullif(cl_ticket_wa.tipo_documento, '')");
+            array_push($numDoc, "nullif(cl_ticket_wa.numero_documento, '')");
+            array_push($display, "nullif(cl_ticket_wa.nombre, '')", "nullif(cl_ticket_wa.razon_social, '')", "nullif(cl_ticket_wa.telefono, '')", "nullif(tk_v.cliente_wa, '')");
+            array_push($sourceCases, "when cl_ticket_wa.id is not null then 'ticket'", "when nullif(tk_v.cliente_wa, '') is not null then 'ticket_contacto'");
+        }
+
+        if ($hasAgenda) {
+            array_push($telefono, 'cl_ag_v_id.telefono', 'cl_ag_v_wa.telefono', 'cl_ag_t_id.telefono', 'cl_ag_t_wa.telefono', 'ag_v.cliente_wa', 'ag_t.cliente_wa');
+            array_push($nombre, "nullif(cl_ag_v_id.nombre, '')", "nullif(cl_ag_v_wa.nombre, '')", "nullif(cl_ag_t_id.nombre, '')", "nullif(cl_ag_t_wa.nombre, '')");
+            array_push($razon, "nullif(cl_ag_v_id.razon_social, '')", "nullif(cl_ag_v_wa.razon_social, '')", "nullif(cl_ag_t_id.razon_social, '')", "nullif(cl_ag_t_wa.razon_social, '')");
+            array_push($tipoDoc, "nullif(cl_ag_v_id.tipo_documento, '')", "nullif(cl_ag_v_wa.tipo_documento, '')", "nullif(cl_ag_t_id.tipo_documento, '')", "nullif(cl_ag_t_wa.tipo_documento, '')");
+            array_push($numDoc, "nullif(cl_ag_v_id.numero_documento, '')", "nullif(cl_ag_v_wa.numero_documento, '')", "nullif(cl_ag_t_id.numero_documento, '')", "nullif(cl_ag_t_wa.numero_documento, '')");
+            array_push($display, "nullif(cl_ag_v_id.nombre, '')", "nullif(cl_ag_v_id.razon_social, '')", "nullif(cl_ag_v_wa.nombre, '')", "nullif(cl_ag_v_wa.razon_social, '')", "nullif(cl_ag_t_id.nombre, '')", "nullif(cl_ag_t_id.razon_social, '')", "nullif(cl_ag_t_wa.nombre, '')", "nullif(cl_ag_t_wa.razon_social, '')", "nullif(cl_ag_v_wa.telefono, '')", "nullif(cl_ag_t_wa.telefono, '')", "nullif(ag_v.cliente_wa, '')", "nullif(ag_t.cliente_wa, '')");
+            array_push($sourceCases, "when cl_ag_v_id.id is not null or cl_ag_v_wa.id is not null then 'agenda_venta'", "when cl_ag_t_id.id is not null or cl_ag_t_wa.id is not null then 'agenda_ticket'", "when nullif(ag_v.cliente_wa, '') is not null or nullif(ag_t.cliente_wa, '') is not null then 'agenda_contacto'");
+
+            if ($hasTickets) {
+                array_push($telefono, 'cl_ag_ticket_wa.telefono');
+                array_push($nombre, "nullif(cl_ag_ticket_wa.nombre, '')");
+                array_push($razon, "nullif(cl_ag_ticket_wa.razon_social, '')");
+                array_push($tipoDoc, "nullif(cl_ag_ticket_wa.tipo_documento, '')");
+                array_push($numDoc, "nullif(cl_ag_ticket_wa.numero_documento, '')");
+                array_push($display, "nullif(cl_ag_ticket_wa.nombre, '')", "nullif(cl_ag_ticket_wa.razon_social, '')");
+                array_splice($sourceCases, count($sourceCases) - 1, 0, ["when cl_ag_ticket_wa.id is not null then 'agenda_ticket'"]);
+            }
+        }
+
         return [
-            DB::raw('coalesce(cl_id.telefono, cl_doc.telefono) as cliente_telefono'),
-            DB::raw("coalesce(nullif(cl_id.nombre, ''), nullif(cl_doc.nombre, '')) as cliente_nombre_ref"),
-            DB::raw("coalesce(nullif(cl_id.razon_social, ''), nullif(cl_doc.razon_social, '')) as cliente_razon_social"),
-            DB::raw("coalesce(nullif(cl_id.tipo_documento, ''), nullif(cl_doc.tipo_documento, '')) as cliente_tipo_documento"),
-            DB::raw("coalesce(nullif(v.cliente_doc_num, ''), nullif(cl_id.numero_documento, ''), nullif(cl_doc.numero_documento, '')) as cliente_numero_documento"),
-            DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl_id.nombre, ''), nullif(cl_id.razon_social, ''), nullif(cl_doc.nombre, ''), nullif(cl_doc.razon_social, ''), nullif(cl_id.telefono, ''), nullif(cl_doc.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre"),
+            DB::raw('coalesce(' . implode(', ', $telefono) . ') as cliente_telefono'),
+            DB::raw('coalesce(' . implode(', ', $nombre) . ') as cliente_nombre_ref'),
+            DB::raw('coalesce(' . implode(', ', $razon) . ') as cliente_razon_social'),
+            DB::raw('coalesce(' . implode(', ', $tipoDoc) . ') as cliente_tipo_documento'),
+            DB::raw('coalesce(' . implode(', ', $numDoc) . ') as cliente_numero_documento'),
+            DB::raw('coalesce(' . implode(', ', $display) . ", case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre"),
+            DB::raw('case ' . implode(' ', $sourceCases) . ' else null end as cliente_fuente'),
         ];
     }
 

@@ -221,8 +221,13 @@
                                             <div class="text-[11px] text-slate-500" x-text="fmtDate(v.fecha_venta)"></div>
                                         </td>
                                         <td class="px-3 py-2">
-                                            <div class="max-w-[220px] truncate text-slate-900" x-text="clienteVenta(v)"></div>
-                                            <div class="text-[11px] text-slate-500" x-text="clienteDocumento(v)"></div>
+                                            <div class="flex max-w-[260px] flex-wrap items-center gap-1.5">
+                                                <span class="truncate text-slate-900" x-text="clienteVenta(v)"></span>
+                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1"
+                                                      :class="clienteBadgeClass(v)"
+                                                      x-text="clienteBadge(v)"></span>
+                                            </div>
+                                            <div class="mt-0.5 text-[11px] text-slate-500" x-text="clienteDocumento(v) || clienteTelefono(v)"></div>
                                         </td>
                                         <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
                                         <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
@@ -349,8 +354,13 @@
                                                     <div class="text-[11px] text-slate-500" x-text="v.fecha_venta || '—'"></div>
                                                 </td>
                                                 <td class="px-3 py-2">
-                                                    <div class="max-w-[220px] truncate text-slate-900" x-text="clienteVenta(v)"></div>
-                                                    <div class="text-[11px] text-slate-500" x-text="clienteDocumento(v)"></div>
+                                                    <div class="flex max-w-[260px] flex-wrap items-center gap-1.5">
+                                                        <span class="truncate text-slate-900" x-text="clienteVenta(v)"></span>
+                                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1"
+                                                              :class="clienteBadgeClass(v)"
+                                                              x-text="clienteBadge(v)"></span>
+                                                    </div>
+                                                    <div class="mt-0.5 text-[11px] text-slate-500" x-text="clienteDocumento(v) || clienteTelefono(v)"></div>
                                                 </td>
                                                 <td class="px-3 py-2 text-slate-700" x-text="v.tipo_documento || '—'"></td>
                                                 <td class="px-3 py-2 text-right text-slate-900" x-text="money(v.total_pen)"></td>
@@ -627,6 +637,7 @@
                                 cliente_telefono: r.cliente_telefono,
                                 cliente_doc_tipo: r.cliente_doc_tipo || r.cliente_tipo_documento,
                                 cliente_doc_num: r.cliente_doc_num || r.cliente_numero_documento,
+                                cliente_fuente: r.cliente_fuente,
                                 fecha_venta: r.fecha_venta,
                                 tipo_documento: r.tipo_documento,
                                 total_pen: Math.round(total * 100) / 100,
@@ -937,10 +948,32 @@
                     return row.cliente_nombre || row.cliente_nombre_ref || row.cliente_razon_social || row.cliente_razon || row.cliente_telefono || (row.cliente_id ? `Cliente #${row.cliente_id}` : 'Cliente no registrado');
                 },
 
+                clienteBadge(row) {
+                    const source = String(row?.cliente_fuente || '').toLowerCase();
+                    if (!row || this.clienteVenta(row) === 'Cliente no registrado') return 'Sin datos';
+                    if (['cliente_id', 'documento', 'venta'].includes(source)) return 'Cliente';
+                    if (['ticket', 'agenda_venta', 'agenda_ticket'].includes(source)) return 'Recuperado';
+                    if (['ticket_contacto', 'agenda_contacto'].includes(source)) return 'Contacto';
+                    return 'Dato';
+                },
+
+                clienteBadgeClass(row) {
+                    const label = this.clienteBadge(row);
+                    if (label === 'Cliente') return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+                    if (label === 'Recuperado') return 'bg-sky-50 text-sky-700 ring-sky-200';
+                    if (label === 'Contacto') return 'bg-amber-50 text-amber-700 ring-amber-200';
+                    if (label === 'Sin datos') return 'bg-rose-50 text-rose-700 ring-rose-200';
+                    return 'bg-slate-100 text-slate-600 ring-slate-200';
+                },
+
                 clienteDocumento(row) {
                     const tipo = row?.cliente_tipo_documento || row?.cliente_doc_tipo || '';
                     const num = row?.cliente_numero_documento || row?.cliente_doc_num || '';
                     return tipo && num ? `${tipo} ${num}` : (num || '');
+                },
+
+                clienteTelefono(row) {
+                    return row?.cliente_telefono ? `Tel. ${row.cliente_telefono}` : '';
                 },
 
                 fmtDate(v) {
