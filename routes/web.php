@@ -90,7 +90,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/agenda/crear', [AgendaController::class, 'store'])->middleware('rbac:agenda,crear')->name('agenda.store');
     Route::post('/agenda/{id}/editar', [AgendaController::class, 'update'])->middleware('rbac:agenda,editar')->name('agenda.update');
     Route::post('/agenda/{id}/completar', [AgendaController::class, 'complete'])
-        ->middleware('rbac:agenda,editar')
+        ->middleware('rbac:agenda,ver')
         ->name('agenda.complete');
     Route::post('/agenda/{id}/eliminar', [AgendaController::class, 'destroy'])->middleware('rbac:agenda,eliminar')->name('agenda.destroy');
 

@@ -24,6 +24,13 @@ final class Rbac
 
         $allowed = (bool) (($perms['*']['*'] ?? false) || ($perms[$modulo][$accion] ?? false));
         if (!$allowed) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => "No tienes permiso para {$accion} en {$modulo}.",
+                ], 403);
+            }
+
             abort(403);
         }
 
