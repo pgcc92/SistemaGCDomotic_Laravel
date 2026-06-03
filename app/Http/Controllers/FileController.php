@@ -10,7 +10,7 @@ final class FileController
     public function show(Request $request, string $cat, string $y, string $m, string $file): BinaryFileResponse
     {
         $this->assertValidPath($cat, $y, $m, $file, allowSettings: false);
-        $path = base_path("storage/{$cat}/{$y}/{$m}/{$file}");
+        $path = $this->path($cat, $y, $m, $file);
 
         if (!is_file($path)) {
             abort(404);
@@ -24,7 +24,7 @@ final class FileController
     public function showSettings(Request $request, string $y, string $m, string $file): BinaryFileResponse
     {
         $this->assertValidPath('settings', $y, $m, $file, allowSettings: true);
-        $path = base_path("storage/settings/{$y}/{$m}/{$file}");
+        $path = $this->path('settings', $y, $m, $file);
 
         if (!is_file($path)) {
             abort(404);
@@ -54,5 +54,16 @@ final class FileController
         if (!preg_match('/^[0-9a-fA-F-]{36}(_thumb)?\\.(jpg|png|webp)$/', $file)) {
             abort(404);
         }
+    }
+
+    private function root(): string
+    {
+        $root = (string) config('gc_uploads.root', base_path('storage'));
+        return rtrim($root, "/\\");
+    }
+
+    private function path(string $cat, string $y, string $m, string $file): string
+    {
+        return $this->root() . DIRECTORY_SEPARATOR . $cat . DIRECTORY_SEPARATOR . $y . DIRECTORY_SEPARATOR . $m . DIRECTORY_SEPARATOR . $file;
     }
 }

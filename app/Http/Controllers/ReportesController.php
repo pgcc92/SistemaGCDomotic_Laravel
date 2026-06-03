@@ -167,7 +167,8 @@ final class ReportesController
 
         // Rutas esperadas: /files/settings/YYYY/MM/uuid.ext
         if (preg_match('#^/files/settings/(?<y>\\d{4})/(?<m>\\d{2})/(?<f>[0-9a-fA-F-]{36}(?:_thumb)?\\.(?:jpg|png|webp))$#', $url, $m)) {
-            $path = base_path("storage/settings/{$m['y']}/{$m['m']}/{$m['f']}");
+            $uploadRoot = rtrim((string) config('gc_uploads.root', base_path('storage')), "/\\");
+            $path = $uploadRoot . DIRECTORY_SEPARATOR . "settings/{$m['y']}/{$m['m']}/{$m['f']}";
             if (is_file($path)) {
                 $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
                 $mime = match ($ext) {

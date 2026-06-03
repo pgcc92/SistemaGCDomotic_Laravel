@@ -13,7 +13,7 @@ use Throwable;
 final class UploadService
 {
     /**
-     * Guarda y procesa una imagen bajo storage/{category}/YYYY/MM/{uuid}.{ext}
+     * Guarda y procesa una imagen bajo {GC_UPLOAD_ROOT}/{category}/YYYY/MM/{uuid}.{ext}
      * e intenta crear un thumbnail {uuid}_thumb.{ext}.
      *
      * Devuelve URLs relativas:
@@ -56,7 +56,7 @@ final class UploadService
         $month = now()->format('m');
         $uuid = (string) Str::uuid();
 
-        $dir = base_path("storage/{$category}/{$year}/{$month}");
+        $dir = $this->path($category, $year, $month);
         if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
             throw new RuntimeException('No se pudo crear el directorio de destino.');
         }
@@ -126,12 +126,23 @@ final class UploadService
             return;
         }
 
-        $directory = base_path("storage/{$matches[1]}/{$matches[2]}/{$matches[3]}");
+        $directory = $this->path($matches[1], $matches[2], $matches[3]);
         foreach (["{$matches[4]}.{$matches[5]}", "{$matches[4]}_thumb.{$matches[5]}"] as $filename) {
             $path = $directory . DIRECTORY_SEPARATOR . $filename;
             if (is_file($path) && !@unlink($path)) {
                 Log::warning('No se pudo eliminar una imagen huérfana.', ['path' => $path]);
             }
         }
+    }
+
+    private function root(): string
+    {
+        $root = (string) config('gc_uploads.root', base_path('storage'));
+        return rtrim($root, "/\\");
+    }
+
+    private function path(string $category, string $year, string $month): string
+    {
+        return $this->root() . DIRECTORY_SEPARATOR . $category . DIRECTORY_SEPARATOR . $year . DIRECTORY_SEPARATOR . $month;
     }
 }

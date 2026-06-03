@@ -67,7 +67,7 @@
             <div>
                 <label class="text-xs text-slate-500">Imagen archivo (opcional)</label>
                 <input type="file" name="imagen_file" accept="image/*" class="mt-1 w-full rounded-lg border-slate-300 bg-white focus:border-primary focus:ring-primary" />
-                <div class="mt-1 text-xs text-slate-500">Si subes archivo, se guarda en `storage/public` y se envía su URL a Postgres.</div>
+                <div class="mt-1 text-xs text-slate-500">Si subes archivo, se guarda en el almacenamiento persistente de imágenes y se envía su URL a Postgres.</div>
             </div>
         </div>
 

@@ -2,10 +2,10 @@
 
 ## Aplicación web
 
-1. En el servicio `app-gcdomotic`, configura un volumen persistente:
+1. En el servicio `app-gcdomotic`, configura un volumen persistente para imágenes:
 
    ```text
-   /var/www/html/storage
+   /data/gcdomotic-storage
    ```
 
 2. Conserva estas variables de entorno:
@@ -18,11 +18,21 @@
    TENANT_MODE=single
    REMOTE_API_BASE_URL=https://api.gcdomotic.com
    REMOTE_API_KEY=<mismo valor de GC_API_TOKEN>
+   GC_UPLOAD_ROOT=/data/gcdomotic-storage
    ```
 
 3. Configura PostgreSQL con una sola definición `DB_*`. No declares después `DB_CONNECTION=sqlite`.
 
-4. Vuelve a implementar el servicio. El contenedor crea las carpetas requeridas, corrige permisos de escritura y ejecuta migraciones automáticamente.
+4. Si ya tienes imágenes guardadas antes del cambio, cópialas al volumen antes de reemplazar el contenedor:
+
+   ```bash
+   mkdir -p /data/gcdomotic-storage
+   cp -a /var/www/html/storage/settings /data/gcdomotic-storage/ 2>/dev/null || true
+   cp -a /var/www/html/storage/productos /data/gcdomotic-storage/ 2>/dev/null || true
+   cp -a /var/www/html/storage/dispositivos /data/gcdomotic-storage/ 2>/dev/null || true
+   ```
+
+5. Vuelve a implementar el servicio. El volumen persistente evita que `settings`, `productos` y `dispositivos` se borren en cada deploy.
 
 ## API
 
@@ -52,10 +62,13 @@ Dentro del contenedor de `app-gcdomotic`, ejecuta:
 cd /var/www/html
 php artisan optimize:clear
 php -m | grep -i '^gd$'
-test -w storage/settings && echo "storage/settings OK"
+mkdir -p "$GC_UPLOAD_ROOT"/{settings,productos,dispositivos}
+chown -R www-data:www-data "$GC_UPLOAD_ROOT" 2>/dev/null || true
+chmod -R 775 "$GC_UPLOAD_ROOT"
+test -w "$GC_UPLOAD_ROOT/settings" && echo "settings OK"
 test -w storage/app/tenants && echo "storage/app/tenants OK"
-test -w storage/productos && echo "storage/productos OK"
-test -w storage/dispositivos && echo "storage/dispositivos OK"
+test -w "$GC_UPLOAD_ROOT/productos" && echo "productos OK"
+test -w "$GC_UPLOAD_ROOT/dispositivos" && echo "dispositivos OK"
 ```
 
-Las imágenes de configuración, productos e instalaciones se guardan bajo `storage/`. El volumen persistente evita perderlas al volver a implementar el servicio.
+Las imágenes de configuración, productos e instalaciones se guardan bajo `GC_UPLOAD_ROOT`. En local, si no defines esa variable, se usa `storage/` del proyecto.

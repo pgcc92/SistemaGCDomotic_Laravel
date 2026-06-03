@@ -346,7 +346,7 @@
                         <div class="text-sm font-semibold text-slate-900">Notas</div>
                         <ul class="mt-2 space-y-1 text-sm text-slate-600">
                             <li>• Los cambios afectan al tenant actual.</li>
-                            <li>• Logos/Favicon se guardan en <code class="rounded bg-slate-100 px-1">storage/settings</code>.</li>
+                            <li>• Logos/Favicon se guardan en <code class="rounded bg-slate-100 px-1">GC_UPLOAD_ROOT/settings</code>.</li>
                             <li>• En modo subdominio, cada subdominio puede tener su propio branding.</li>
                         </ul>
                     </div>

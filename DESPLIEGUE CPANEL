@@ -92,6 +92,9 @@ APP_KEY=base64:GENERADA
 
 REMOTE_API_BASE_URL=https://api.gcdomotic.com
 REMOTE_API_KEY=<EL_MISMO_GC_API_TOKEN>
+
+# Opcional: carpeta persistente para imágenes. Si no se define, usa storage/ del proyecto.
+GC_UPLOAD_ROOT=/home/<usuario>/gcdomotic_uploads
 ```
 
 > Importante: en producción NO debe quedar `REMOTE_API_BASE_URL=http://127.0.0.1:8001`.
@@ -133,8 +136,18 @@ php artisan optimize:clear
 Ambas apps requieren escritura en:
 - `storage/`
 - `bootstrap/cache/`
+- La carpeta definida en `GC_UPLOAD_ROOT` si la usas para imágenes persistentes.
 
 Si hay errores 500 por permisos, revisa owner/perms desde File Manager.
+
+Para evitar perder imágenes al actualizar archivos del proyecto, crea una carpeta fuera del código:
+
+```bash
+mkdir -p ~/gcdomotic_uploads/settings ~/gcdomotic_uploads/productos ~/gcdomotic_uploads/dispositivos
+chmod -R 775 ~/gcdomotic_uploads
+```
+
+Luego define `GC_UPLOAD_ROOT=/home/<usuario>/gcdomotic_uploads` en el `.env` del Dashboard.
 
 ### 7) Assets (Vite)
 En producción se debe subir el contenido de `public/build/`.
@@ -218,4 +231,3 @@ curl -H "X-API-Key: $TOKEN" http://127.0.0.1:8001/api/v1/health
 - Si alguna contraseña/token se compartió por chat, **rotarla** (cambiar en Postgres / `.env`).
 - Mantener `APP_DEBUG=false` en producción.
 - Restringir el acceso a Postgres remoto por IP (ideal: solo el servidor cPanel).
-
