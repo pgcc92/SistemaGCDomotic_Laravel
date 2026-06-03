@@ -35,7 +35,7 @@ final class ComisionesController
             ->leftJoin('usuarios as u', 'u.id', '=', 'c.vendedor_id')
             ->orderBy('c.id', 'desc');
         if ($hasClientes) {
-            $q->leftJoin($clientes . ' as cl', 'cl.id', '=', 'v.cliente_id');
+            $this->joinClientesVenta($q, $clientes);
         }
         if (!$canViewAll && $uid > 0) {
             $q->where('c.vendedor_id', $uid);
@@ -83,12 +83,7 @@ final class ComisionesController
             'u.nombre as vendedor_nombre',
         ];
         if ($hasClientes) {
-            $select[] = 'cl.telefono as cliente_telefono';
-            $select[] = 'cl.nombre as cliente_nombre_ref';
-            $select[] = 'cl.razon_social as cliente_razon_social';
-            $select[] = 'cl.tipo_documento as cliente_tipo_documento';
-            $select[] = 'cl.numero_documento as cliente_numero_documento';
-            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl.nombre, ''), nullif(cl.razon_social, ''), nullif(cl.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+            array_push($select, ...$this->clienteSelectsVenta());
         } else {
             $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
         }
@@ -132,7 +127,7 @@ final class ComisionesController
             ->where('v.fecha_venta', '>=', $from)
             ->where('v.fecha_venta', '<', $to);
         if ($hasClientes) {
-            $q->leftJoin($clientes . ' as cl', 'cl.id', '=', 'v.cliente_id');
+            $this->joinClientesVenta($q, $clientes);
         }
 
         if (!$canViewAll) {
@@ -167,12 +162,7 @@ final class ComisionesController
             'v.fecha_venta',
         ];
         if ($hasClientes) {
-            $select[] = 'cl.telefono as cliente_telefono';
-            $select[] = 'cl.nombre as cliente_nombre_ref';
-            $select[] = 'cl.razon_social as cliente_razon_social';
-            $select[] = 'cl.tipo_documento as cliente_tipo_documento';
-            $select[] = 'cl.numero_documento as cliente_numero_documento';
-            $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl.nombre, ''), nullif(cl.razon_social, ''), nullif(cl.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
+            array_push($select, ...$this->clienteSelectsVenta());
         } else {
             $select[] = DB::raw("coalesce(nullif(v.cliente_razon, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre");
         }
@@ -300,6 +290,28 @@ final class ComisionesController
             ->first();
 
         return $rule ? (float) ($rule->porcentaje ?? 0) : 0.0;
+    }
+
+    private function joinClientesVenta(\Illuminate\Database\Query\Builder $q, string $clientes): void
+    {
+        $q->leftJoin($clientes . ' as cl_id', 'cl_id.id', '=', 'v.cliente_id')
+            ->leftJoin($clientes . ' as cl_doc', function ($join) {
+                $join->on('cl_doc.numero_documento', '=', 'v.cliente_doc_num')
+                    ->whereRaw("coalesce(v.cliente_doc_num, '') <> ''");
+            });
+    }
+
+    /** @return array<int,\Illuminate\Contracts\Database\Query\Expression|string> */
+    private function clienteSelectsVenta(): array
+    {
+        return [
+            DB::raw('coalesce(cl_id.telefono, cl_doc.telefono) as cliente_telefono'),
+            DB::raw("coalesce(nullif(cl_id.nombre, ''), nullif(cl_doc.nombre, '')) as cliente_nombre_ref"),
+            DB::raw("coalesce(nullif(cl_id.razon_social, ''), nullif(cl_doc.razon_social, '')) as cliente_razon_social"),
+            DB::raw("coalesce(nullif(cl_id.tipo_documento, ''), nullif(cl_doc.tipo_documento, '')) as cliente_tipo_documento"),
+            DB::raw("coalesce(nullif(v.cliente_doc_num, ''), nullif(cl_id.numero_documento, ''), nullif(cl_doc.numero_documento, '')) as cliente_numero_documento"),
+            DB::raw("coalesce(nullif(v.cliente_razon, ''), nullif(cl_id.nombre, ''), nullif(cl_id.razon_social, ''), nullif(cl_doc.nombre, ''), nullif(cl_doc.razon_social, ''), nullif(cl_id.telefono, ''), nullif(cl_doc.telefono, ''), case when v.cliente_id is not null then 'Cliente #' || v.cliente_id::text else null end) as cliente_nombre"),
+        ];
     }
 
     /** @return array<int,int> */
