@@ -645,100 +645,168 @@
         </x-modal>
 
         <!-- Completar / evidencia -->
-        <x-modal name="agenda-completar" maxWidth="3xl" focusable>
+        <x-modal name="agenda-completar" maxWidth="4xl" focusable>
             <form class="divide-y divide-slate-200" @submit.prevent="submitComplete()">
-                <div class="px-6 py-4 flex items-start justify-between gap-3 bg-white/80 backdrop-blur">
-                    <div>
-                        <div class="text-sm font-semibold text-slate-900">Confirmar servicio</div>
-                        <div class="mt-0.5 text-xs text-slate-500">Registra hora de término y evidencia.</div>
-                    </div>
-                    <x-icon-button @click="$dispatch('close-modal','agenda-completar')" aria-label="Cerrar">
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </x-icon-button>
-                </div>
-
-                <div class="px-6 py-5 space-y-4">
-                    <template x-if="completeError">
-                        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" x-text="completeError"></div>
-                    </template>
-
-                    <div class="grid gap-4 lg:grid-cols-12">
-                        <div class="lg:col-span-5 space-y-4">
-                            <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                                <div class="text-sm font-semibold text-slate-900">Cliente</div>
-                                <div class="mt-3 text-sm text-slate-700">
-                                    <div class="font-semibold text-slate-900" x-text="detailCliente?.nombre || detailCliente?.razon_social || '—'"></div>
-                                    <div class="mt-0.5 text-xs text-slate-500" x-text="detailCliente?.telefono || detail?.cliente_wa || '—'"></div>
-                                </div>
+                <div class="bg-slate-950 px-5 py-4 text-white">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="text-base font-semibold leading-tight">Confirmar servicio</div>
+                                <span class="inline-flex items-center rounded-full bg-emerald-400/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200 ring-1 ring-inset ring-emerald-300/30">
+                                    Evidencia
+                                </span>
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset"
+                                      :class="estadoClass(detail?.estado)"
+                                      x-text="detail?.estado || 'Programada'"></span>
                             </div>
-
-                            <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                                <div class="text-sm font-semibold text-slate-900">Referencia</div>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                                        <span class="text-slate-500">Venta:</span>
-                                        <span class="ml-2" x-text="detailVenta?.venta_codigo || (detail?.venta_id ? ('#' + detail?.venta_id) : '—')"></span>
-                                    </span>
-                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                                        <span class="text-slate-500">Técnico:</span>
-                                        <span class="ml-2" x-text="tecnicoLabel(detail?.tecnico_id)"></span>
-                                    </span>
-                                </div>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-300">
+                                <span class="font-medium text-white" x-text="detailCliente?.nombre || detailCliente?.razon_social || detail?.titulo || 'Cliente'"></span>
+                                <span class="text-slate-500">/</span>
+                                <span x-text="fmtDate(detail?.fecha_programada)"></span>
+                                <template x-if="detail?.prioridad">
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ring-1 ring-inset"
+                                          :class="prioClass(detail?.prioridad)"
+                                          x-text="detail?.prioridad"></span>
+                                </template>
                             </div>
                         </div>
+                        <button type="button"
+                                class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-inset ring-white/15 transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-emerald-300/50"
+                                @click="$dispatch('close-modal','agenda-completar')"
+                                aria-label="Cerrar">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
 
-                        <div class="lg:col-span-7">
-                            <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                                <div class="text-sm font-semibold text-slate-900">Evidencia</div>
+                <div class="bg-slate-50 px-5 py-4 space-y-3">
+                    <template x-if="completeError">
+                        <div class="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                            <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                            </svg>
+                            <span x-text="completeError"></span>
+                        </div>
+                    </template>
+
+                    <div class="grid gap-3 lg:grid-cols-12">
+                        <aside class="lg:col-span-4">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Cliente</div>
+                                    <span class="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 ring-1 ring-inset ring-sky-200">
+                                        Agenda
+                                    </span>
+                                </div>
+                                <div class="mt-3 flex items-center gap-3">
+                                    <div class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-sm font-bold uppercase text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                                         x-text="String(detailCliente?.nombre || detailCliente?.razon_social || detail?.titulo || 'C').slice(0,1)"></div>
+                                    <div class="min-w-0">
+                                        <div class="truncate text-sm font-semibold text-slate-950" x-text="detailCliente?.nombre || detailCliente?.razon_social || '—'"></div>
+                                        <div class="mt-0.5 text-xs text-slate-500" x-text="detailCliente?.telefono || detail?.cliente_wa || 'Sin teléfono'"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 grid gap-2 text-xs">
+                                    <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200">
+                                        <span class="font-medium text-slate-500">Venta</span>
+                                        <span class="max-w-[11rem] truncate font-semibold text-slate-800" x-text="detailVenta?.venta_codigo || (detail?.venta_id ? ('#' + detail?.venta_id) : '—')"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200">
+                                        <span class="font-medium text-slate-500">Técnico</span>
+                                        <span class="max-w-[11rem] truncate font-semibold text-slate-800" x-text="tecnicoLabel(detail?.tecnico_id)"></span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200" x-text="detail?.tipo || 'Servicio'"></span>
+                                    <span class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-200" x-text="`${detail?.duracion_min || 0} min`"></span>
+                                </div>
+                            </div>
+                        </aside>
+
+                        <section class="lg:col-span-8">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-950">Datos de cierre</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">Hora, evidencia visual y ubicación opcional.</div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                            Requerido: hora
+                                        </span>
+                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
+                                              x-text="completeFileCount ? `${completeFileCount} foto(s)` : 'Sin fotos'"></span>
+                                    </div>
+                                </div>
+
                                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                                     <div>
-                                        <label class="text-xs font-medium text-slate-700">Hora de término</label>
+                                        <label class="text-xs font-semibold text-slate-700">Hora de término</label>
                                         <input x-model="complete.terminado_at" type="datetime-local" required
-                                               class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" />
+                                               class="mt-1 w-full rounded-lg border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 focus:border-primary focus:ring-primary" />
                                     </div>
                                     <div>
-                                        <label class="text-xs font-medium text-slate-700">Fotos (evidencia)</label>
+                                        <label class="text-xs font-semibold text-slate-700">Fotos</label>
                                         <input x-ref="completeFoto" type="file" accept="image/jpeg,image/png,image/webp" multiple
-                                               class="mt-1 block w-full rounded-xl border border-slate-200 bg-white text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800" />
-                                        <div class="mt-1 text-[11px] text-slate-500">Puedes subir hasta 5 imágenes. En móvil puedes elegir cámara o galería.</div>
+                                               @change="completeFileCount = $event.target.files?.length || 0"
+                                               class="mt-1 block w-full rounded-lg border border-slate-200 bg-white text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800" />
+                                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">Máx. 5</span>
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">JPG/PNG/WebP</span>
+                                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">Auto-comprime</span>
+                                        </div>
                                     </div>
                                     <div>
-                                        <label class="text-xs font-medium text-slate-700">GPS (lat)</label>
+                                        <label class="text-xs font-semibold text-slate-700">GPS lat</label>
                                         <input x-model="complete.gps_lat" inputmode="decimal" placeholder="—"
-                                               class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" />
+                                               class="mt-1 w-full rounded-lg border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" />
                                     </div>
                                     <div>
-                                        <label class="text-xs font-medium text-slate-700">GPS (lng)</label>
+                                        <label class="text-xs font-semibold text-slate-700">GPS lng</label>
                                         <input x-model="complete.gps_lng" inputmode="decimal" placeholder="—"
-                                               class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" />
+                                               class="mt-1 w-full rounded-lg border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary" />
                                     </div>
                                 </div>
-                                <div class="mt-3 flex items-center justify-between gap-2">
-                                    <div class="text-[11px] text-slate-500">Opcional: usar ubicación del dispositivo.</div>
+
+                                <div class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-sky-50 px-3 py-2 ring-1 ring-inset ring-sky-100">
+                                    <div class="flex items-center gap-2 text-xs text-sky-800">
+                                        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z" />
+                                            <circle cx="12" cy="10" r="2.5" stroke-width="2" />
+                                        </svg>
+                                        <span>Ubicación opcional del dispositivo.</span>
+                                    </div>
                                     <button type="button"
-                                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 disabled:opacity-60"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-50 disabled:opacity-60"
                                             :disabled="completeSaving"
                                             @click="fillMyLocation()">
-                                        Usar mi ubicación
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v3m0 14v3M2 12h3m14 0h3m-4.22-6.78-2.12 2.12M7.34 15.66l-2.12 2.12m0-12.56 2.12 2.12m8.32 8.32 2.12 2.12" />
+                                            <circle cx="12" cy="12" r="4" stroke-width="2" />
+                                        </svg>
+                                        Capturar GPS
                                     </button>
                                 </div>
-                                <div class="mt-4">
-                                    <label class="text-xs font-medium text-slate-700">Notas</label>
-                                    <textarea x-model="complete.notas" rows="3"
-                                              class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary"
+
+                                <div class="mt-3">
+                                    <label class="text-xs font-semibold text-slate-700">Notas</label>
+                                    <textarea x-model="complete.notas" rows="2"
+                                              class="mt-1 w-full rounded-lg border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary"
                                               placeholder="Detalle, observaciones, etc."></textarea>
                                 </div>
                             </div>
-                        </div>
+                        </section>
                     </div>
                 </div>
 
-                <div class="px-6 py-4 flex items-center justify-between gap-2 bg-white/80 backdrop-blur">
-                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm hover:bg-slate-50"
+                <div class="flex items-center justify-between gap-2 bg-white px-5 py-3">
+                    <button type="button" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                             @click="$dispatch('close-modal','agenda-completar')">Cancelar</button>
-                    <button class="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 inline-flex items-center gap-2"
+                    <button class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
                             :disabled="completeSaving">
                         <svg x-show="completeSaving" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -866,6 +934,7 @@
                 },
                 completeError: '',
                 completeSaving: false,
+                completeFileCount: 0,
                 suppressClienteWatch: false,
 
                 async init() {
@@ -1560,6 +1629,7 @@
                     if (this.$refs?.completeFoto) {
                         this.$refs.completeFoto.value = '';
                     }
+                    this.completeFileCount = 0;
                 },
 
                 canCompleteDetail() {
@@ -1584,6 +1654,7 @@
                     if (this.$refs?.completeFoto) {
                         this.$refs.completeFoto.value = '';
                     }
+                    this.completeFileCount = 0;
                 },
 
                 async fillMyLocation() {
