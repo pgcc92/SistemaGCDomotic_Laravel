@@ -398,6 +398,15 @@
 
                             <div class="mt-3 grid gap-3">
                                 <div class="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Dirección de instalación</div>
+                                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800">
+                                            Instalación
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 whitespace-pre-wrap text-sm font-medium leading-6 text-slate-900 dark:text-slate-100" x-text="detailInstallDireccion()"></div>
+                                </div>
+                                <div class="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
                                     <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Descripción</div>
                                     <div class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-slate-200" x-text="detail?.descripcion || '—'"></div>
                                 </div>
@@ -523,7 +532,7 @@
                             <div>
                                 <label class="text-xs font-medium text-slate-700">Venta ID</label>
                                 <template x-if="ventasCliente.length > 0">
-                                    <select x-model="form.venta_id" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary">
+                                    <select x-model="form.venta_id" @change="pickVentaById(form.venta_id)" class="mt-1 w-full rounded-xl border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary focus:ring-primary">
                                         <option value="">—</option>
                                         <template x-for="v in ventasCliente" :key="v.id">
                                             <option :value="v.id" x-text="`${v.venta_codigo || ('#'+v.id)} • ${fmtDate(v.fecha_venta || v.created_at || '')}`"></option>
@@ -560,11 +569,14 @@
                                         </div>
                                     </div>
                                     <div class="mt-1 text-[11px] text-slate-500" x-show="form.venta_id">
-                                        Seleccionado: <span class="font-medium text-slate-700" x-text="form.venta_id"></span>
+                                        Seleccionado: <span class="font-medium text-slate-700" x-text="selectedVentaLabel()"></span>
                                     </div>
                                 </template>
-                                <div class="mt-1 text-[11px] text-slate-500" x-show="selectedCliente">
+                                <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500" x-show="selectedCliente">
                                     Cliente: <span class="font-medium text-slate-700" x-text="selectedCliente?.telefono || selectedCliente?.nombre || ''"></span>
+                                    <span x-show="selectedVenta" class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                        Última venta vinculada
+                                    </span>
                                 </div>
                             </div>
                         </template>
@@ -898,6 +910,7 @@
                     estado: 'PENDIENTE',
                     fecha_programada: '',
                     duracion_min: 60,
+                    cliente_id: '',
                     cliente_wa: '',
                     ticket_id: '',
                     venta_id: '',
@@ -921,6 +934,7 @@
                 tecnicos: [],
                 selectedCliente: null,
                 ventasCliente: [],
+                selectedVenta: null,
                 selectedModelo: null,
                 tckOpen: false,
                 tckResults: [],
@@ -953,6 +967,7 @@
                 completeSaving: false,
                 completeFileCount: 0,
                 suppressClienteWatch: false,
+                suppressVentaWatch: false,
 
                 async init() {
                     this.month = this.todayMonth();
@@ -1030,6 +1045,7 @@
                     });
 
                     this.$watch('ventaQuery', (v) => {
+                        if (this.suppressVentaWatch) return;
                         const query = String(v || '').trim();
                         if (query.length < 2) {
                             this.ventaOpen = false;
@@ -1151,29 +1167,83 @@
 
                 pickCliente(c) {
                     this.suppressClienteWatch = true;
+                    this.form.cliente_id = c?.id ? String(c.id) : '';
                     this.form.cliente_wa = String(c.telefono || '');
                     this.cliOpen = false;
                     this.selectedCliente = c || null;
+                    this.selectedVenta = null;
+                    const clienteDir = this.normalizeDireccion(c?.direccion || '');
+                    if (clienteDir && !String(this.form.direccion || '').trim()) {
+                        this.form.direccion = clienteDir;
+                    }
                     this.$nextTick(() => { this.suppressClienteWatch = false; });
                     this.loadVentasCliente();
                 },
 
                 async loadVentasCliente() {
                     this.ventasCliente = [];
+                    this.selectedVenta = null;
                     const id = this.selectedCliente?.id;
                     if (!id) return;
                     try {
                         const res = await window.axios.get(this.urls.ventasByCliente(id), { headers: { 'Accept': 'application/json' } });
                         const ventas = res.data?.data?.ventas || res.data?.data || [];
                         const rows = Array.isArray(ventas) ? ventas : [];
-                        rows.sort((a, b) => String(b.fecha_venta || b.created_at || '').localeCompare(String(a.fecha_venta || a.created_at || '')));
+                        rows.sort((a, b) => this.ventaSortValue(b) - this.ventaSortValue(a));
                         this.ventasCliente = rows.slice(0, 10);
-                        if (this.ventasCliente.length > 0 && !this.form.venta_id) {
-                            this.form.venta_id = String(this.ventasCliente[0].id || '');
+                        if (this.ventasCliente.length > 0) {
+                            await this.selectVenta(this.ventasCliente[0], { autofill: true });
+                        } else {
+                            this.form.venta_id = '';
+                            this.setVentaQuery('');
                         }
                     } catch {
                         // Silencioso: si no hay permisos, igual permite ingresar ID manual.
                     }
+                },
+
+                ventaSortValue(v) {
+                    const raw = v?.fecha_venta || v?.created_at || v?.fecha || '';
+                    const d = raw ? new Date(String(raw).replace(' ', 'T')) : null;
+                    const t = d && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+                    const id = parseInt(v?.id || 0, 10) || 0;
+                    return t || id;
+                },
+
+                setVentaQuery(value) {
+                    this.suppressVentaWatch = true;
+                    this.ventaQuery = String(value || '');
+                    this.$nextTick(() => { this.suppressVentaWatch = false; });
+                },
+
+                selectedVentaLabel() {
+                    const v = this.selectedVenta || (this.ventasCliente || []).find(x => String(x.id || '') === String(this.form.venta_id || '')) || null;
+                    if (v) return `${v.venta_codigo || ('#' + v.id)} • ${this.fmtDate(v.fecha_venta || v.created_at || '')}`;
+                    return this.form.venta_id ? `#${this.form.venta_id}` : '—';
+                },
+
+                async selectVenta(v, { autofill = true } = {}) {
+                    if (!v?.id) return;
+                    this.selectedVenta = v;
+                    this.form.venta_id = String(v.id);
+                    this.setVentaQuery(v.venta_codigo || String(v.id));
+                    this.ventaOpen = false;
+                    if (!String(this.form.cliente_wa || '').trim() && (v?.cliente_wa || v?.cliente_doc_num)) {
+                        this.form.cliente_wa = String(v.cliente_wa || v.cliente_doc_num || '');
+                    }
+                    if (autofill) {
+                        await this.autofillByVenta(v.id);
+                    }
+                },
+
+                async pickVentaById(id) {
+                    const v = (this.ventasCliente || []).find(x => String(x.id || '') === String(id || '')) || null;
+                    if (v) {
+                        await this.selectVenta(v, { autofill: true });
+                        return;
+                    }
+                    this.selectedVenta = null;
+                    if (id) await this.autofillByVenta(id);
                 },
 
                 async searchTickets(q) {
@@ -1238,13 +1308,8 @@
                     }
                 },
 
-                pickVenta(v) {
-                    this.form.venta_id = String(v?.id || '');
-                    this.ventaQuery = v?.venta_codigo || (v?.id ? String(v.id) : '');
-                    this.ventaOpen = false;
-                    if (!String(this.form.cliente_wa || '').trim() && (v?.cliente_wa || v?.cliente_doc_num)) {
-                        this.form.cliente_wa = String(v.cliente_wa || v.cliente_doc_num || '');
-                    }
+                async pickVenta(v) {
+                    await this.selectVenta(v, { autofill: true });
                 },
 
                 async searchModelos(q) {
@@ -1412,6 +1477,8 @@
                         this.form.ticket_id = '';
                     } else if (tipo === 'POSTVENTA') {
                         this.form.venta_id = '';
+                        this.selectedVenta = null;
+                        this.setVentaQuery('');
                     }
                 },
 
@@ -1620,6 +1687,7 @@
                         estado: 'PENDIENTE',
                         fecha_programada: this.defaultDateTimeLocal(),
                         duracion_min: 60,
+                        cliente_id: '',
                         cliente_wa: '',
                         ticket_id: '',
                         venta_id: '',
@@ -1632,6 +1700,8 @@
                         tecnico_id: '',
                         notas: '',
                     };
+                    this.selectedVenta = null;
+                    this.setVentaQuery('');
                 },
 
                 resetComplete() {
@@ -1833,6 +1903,7 @@
                         estado: row?.estado || 'PENDIENTE',
                         fecha_programada: this.toLocal(row?.fecha_programada),
                         duracion_min: row?.duracion_min ?? 60,
+                        cliente_id: row?.cliente_id || '',
                         cliente_wa: row?.cliente_wa || '',
                         ticket_id: row?.ticket_id || '',
                         venta_id: row?.venta_id || '',
@@ -1845,6 +1916,8 @@
                         tecnico_id: row?.tecnico_id || '',
                         notas: this.stripInstallMeta(row?.notas || ''),
                     };
+                    this.selectedVenta = this.detailVenta || null;
+                    this.setVentaQuery(this.detailVenta?.venta_codigo || (row?.venta_id ? String(row.venta_id) : ''));
                 },
 
                 parseInstallMeta(notas) {
@@ -1865,6 +1938,23 @@
 
                 stripInstallMeta(notas) {
                     return String(notas || '').replace(/\n?\[INSTALACION\][^\n]*\n?/ig, '').trim();
+                },
+
+                detailInstallDireccion() {
+                    const meta = this.parseInstallMeta(this.detail?.notas || '');
+                    const candidates = [
+                        meta.direccion,
+                        this.detail?.direccion,
+                        this.detail?.cliente_direccion,
+                        this.detailVenta?.direccion,
+                        this.detailVenta?.cliente_direccion,
+                        this.detailVenta?.cliente?.direccion,
+                        this.detailCliente?.direccion,
+                    ];
+                    const found = candidates
+                        .map(v => this.normalizeDireccion(v || ''))
+                        .find(v => v !== '');
+                    return found || '—';
                 },
 
                 withInstallMeta(notas) {
