@@ -985,19 +985,38 @@
                 },
 
                 docBadge(tipo) {
-                    const t = String(tipo || '').toUpperCase();
+                    const t = this.docType(tipo);
                     if (t === 'FACTURA') return 'Factura';
                     if (t === 'BOLETA') return 'Boleta';
-                    if (t === 'NOTA_VENTA') return 'Nota venta';
-                    return t || 'Doc.';
+                    if (t === 'NOTA_VENTA') return 'Nota de venta';
+                    return t ? this.titleCase(t.replaceAll('_', ' ')) : 'Doc.';
                 },
 
                 docBadgeClass(tipo) {
-                    const t = String(tipo || '').toUpperCase();
+                    const t = this.docType(tipo);
                     if (t === 'FACTURA') return 'bg-violet-50 text-violet-700 ring-violet-200';
                     if (t === 'BOLETA') return 'bg-sky-50 text-sky-700 ring-sky-200';
                     if (t === 'NOTA_VENTA') return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
                     return 'bg-slate-100 text-slate-600 ring-slate-200';
+                },
+
+                docType(tipo) {
+                    const raw = String(tipo || '').trim();
+                    const t = raw
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[\s-]+/g, '_')
+                        .toUpperCase();
+                    if (['FACTURA', 'FACTURA_ELECTRONICA', 'FAC'].includes(t)) return 'FACTURA';
+                    if (['BOLETA', 'BOLETA_ELECTRONICA', 'BOL'].includes(t)) return 'BOLETA';
+                    if (['NOTA_VENTA', 'NOTA_DE_VENTA', 'NV', 'NOTA'].includes(t)) return 'NOTA_VENTA';
+                    return t;
+                },
+
+                titleCase(value) {
+                    return String(value || '')
+                        .toLowerCase()
+                        .replace(/\b\p{L}/gu, ch => ch.toUpperCase());
                 },
 
                 fmtDate(v) {
