@@ -275,32 +275,41 @@
             <x-pagination page="page" pages="pages"></x-pagination>
         </div>
 
-        <x-modal name="agenda-detalle" maxWidth="4xl">
-            <div class="border-b border-slate-200 px-6 py-4 bg-white/80 backdrop-blur">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <x-modal name="agenda-detalle" maxWidth="5xl">
+            <div class="border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div class="min-w-0">
-                        <div class="text-base font-semibold text-slate-900 truncate" x-text="detail?.titulo || `Agenda #${detail?.id || ''}`"></div>
-                        <div class="mt-0.5 text-xs text-slate-500" x-text="fmtDate(detail?.fecha_programada)"></div>
-                        <div class="mt-2 flex flex-wrap items-center gap-2">
-                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
-                                  x-text="detail?.tipo || '—'"></span>
-                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset"
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="truncate text-base font-semibold text-slate-950 dark:text-slate-100" x-text="detail?.titulo || `Agenda #${detail?.id || ''}`"></div>
+                            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
+                                  x-text="detail?.tipo || 'Servicio'"></span>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ring-1 ring-inset"
                                   :class="estadoClass(detail?.estado)"
                                   x-text="detail?.estado || '—'"></span>
-                            <span x-show="detail?.prioridad" class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset"
+                            <span x-show="detail?.prioridad" class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ring-1 ring-inset"
                                   :class="prioClass(detail?.prioridad)"
                                   x-text="detail?.prioridad || ''"></span>
                         </div>
+                        <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                            <span x-text="fmtDate(detail?.fecha_programada)"></span>
+                            <span class="text-slate-300 dark:text-slate-700">/</span>
+                            <span x-text="detail?.duracion_min ? `${detail.duracion_min} min` : 'Sin duración'"></span>
+                            <span class="text-slate-300 dark:text-slate-700">/</span>
+                            <span x-text="tecnicoLabel(detail?.tecnico_id)"></span>
+                        </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <button type="button"
-                                class="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
                                 x-show="canCompleteDetail()"
                                 @click="openComplete(detail); $dispatch('open-modal','agenda-completar')">
-                            Confirmar / evidencia
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Confirmar
                         </button>
-                        <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+                        <button type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                                 @click="fillForm(detail); $dispatch('open-modal','agenda-form')">Editar</button>
                         <x-icon-button @click="$dispatch('close-modal','agenda-detalle')" aria-label="Cerrar">
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -310,87 +319,95 @@
                     </div>
                 </div>
             </div>
-            <div class="px-6 py-5 space-y-4">
+
+            <div class="bg-slate-50 px-5 py-4 dark:bg-slate-950">
                 <template x-if="detailError">
-                    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" x-text="detailError"></div>
+                    <div class="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300" x-text="detailError"></div>
                 </template>
-                <div class="grid gap-4 lg:grid-cols-12" x-show="detail">
-                    <!-- Columna izquierda: Cliente + referencias -->
-                    <div class="lg:col-span-4 space-y-4">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                            <div class="text-sm font-semibold text-slate-900">Cliente</div>
-                            <div class="mt-3 flex items-start gap-3">
-                                <div class="h-10 w-10 shrink-0 rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15 flex items-center justify-center text-sm font-bold">
+
+                <div class="grid gap-3 lg:grid-cols-12" x-show="detail">
+                    <aside class="lg:col-span-4">
+                        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cliente</div>
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800">Contacto</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-3">
+                                <div class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-bold uppercase text-primary ring-1 ring-inset ring-primary/20 dark:bg-primary/20 dark:text-indigo-200 dark:ring-primary/30">
                                     <span x-text="(detailCliente?.nombre || detailCliente?.razon_social || detail?.cliente_wa || 'C').toString().trim().slice(0,1).toUpperCase()"></span>
                                 </div>
                                 <div class="min-w-0">
-                                    <div class="truncate text-sm font-semibold text-slate-900" x-text="detailCliente?.nombre || detailCliente?.razon_social || '—'"></div>
-                                    <div class="mt-0.5 text-xs text-slate-500" x-text="detailCliente?.telefono || detail?.cliente_wa || '—'"></div>
-                                    <div x-show="detailCliente?.razon_social && detailCliente?.nombre" class="mt-2 text-xs text-slate-500">
-                                        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">Razón social</span>
-                                        <span class="ml-2" x-text="detailCliente?.razon_social"></span>
-                                    </div>
+                                    <div class="truncate text-sm font-semibold text-slate-950 dark:text-slate-100" x-text="detailCliente?.nombre || detailCliente?.razon_social || '—'"></div>
+                                    <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400" x-text="detailCliente?.telefono || detail?.cliente_wa || '—'"></div>
                                 </div>
+                            </div>
+                            <div x-show="detailCliente?.razon_social && detailCliente?.nombre" class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800">
+                                <span class="font-semibold text-slate-500 dark:text-slate-400">Razón social</span>
+                                <span class="ml-2 font-medium text-slate-800 dark:text-slate-100" x-text="detailCliente?.razon_social"></span>
                             </div>
                         </div>
 
-                        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                            <div class="text-sm font-semibold text-slate-900">Referencias</div>
-                            <div class="mt-3 space-y-2 text-sm">
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-slate-500">Ticket</span>
-                                    <span class="font-medium text-slate-900" x-text="detail?.ticket_id || '—'"></span>
+                        <div class="mt-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Referencias</div>
+                            <div class="mt-3 grid gap-2 text-xs">
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+                                    <span class="font-medium text-slate-500 dark:text-slate-400">Ticket</span>
+                                    <span class="max-w-[12rem] truncate font-semibold text-slate-900 dark:text-slate-100" x-text="detail?.ticket_id || '—'"></span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-slate-500">Venta</span>
-                                    <span class="font-medium text-slate-900" x-text="detailVenta?.venta_codigo || (detail?.venta_id || '—')"></span>
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+                                    <span class="font-medium text-slate-500 dark:text-slate-400">Venta</span>
+                                    <span class="max-w-[12rem] truncate font-semibold text-slate-900 dark:text-slate-100" x-text="detailVenta?.venta_codigo || (detail?.venta_id || '—')"></span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="text-slate-500">Técnico</span>
-                                    <span class="font-medium text-slate-900" x-text="tecnicoLabel(detail?.tecnico_id)"></span>
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+                                    <span class="font-medium text-slate-500 dark:text-slate-400">Técnico</span>
+                                    <span class="max-w-[12rem] truncate font-semibold text-slate-900 dark:text-slate-100" x-text="tecnicoLabel(detail?.tecnico_id)"></span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3" x-show="detail?.evidencia_dispositivo_id">
-                                    <span class="text-slate-500">Evidencia</span>
-                                    <span class="font-medium text-slate-900" x-text="`#${detail?.evidencia_dispositivo_id}`"></span>
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800" x-show="detail?.evidencia_dispositivo_id">
+                                    <span class="font-medium text-slate-500 dark:text-slate-400">Evidencia</span>
+                                    <span class="font-semibold text-slate-900 dark:text-slate-100" x-text="`#${detail?.evidencia_dispositivo_id}`"></span>
                                 </div>
-                                <div class="flex items-center justify-between gap-3" x-show="detail?.terminado_at">
-                                    <span class="text-slate-500">Terminado</span>
-                                    <span class="font-medium text-slate-900" x-text="fmtDate(detail?.terminado_at)"></span>
+                                <div class="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-800" x-show="detail?.terminado_at">
+                                    <span class="font-medium text-emerald-700 dark:text-emerald-300">Terminado</span>
+                                    <span class="font-semibold text-emerald-900 dark:text-emerald-100" x-text="fmtDate(detail?.terminado_at)"></span>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </aside>
 
-                    <!-- Columna derecha: Título / Descripción / Notas -->
-                    <div class="lg:col-span-8 space-y-4">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="text-sm font-semibold text-slate-900">Detalle</div>
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
+                    <section class="lg:col-span-8">
+                        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <div class="text-sm font-semibold text-slate-950 dark:text-slate-100">Detalle operativo</div>
+                                    <div class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Información principal de la visita.</div>
+                                </div>
+                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
                                       x-text="detail?.duracion_min ? `${detail.duracion_min} min` : '—'"></span>
                             </div>
-                            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
-                                    <div class="text-xs font-semibold text-slate-600">Título</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="detail?.titulo || '—'"></div>
+
+                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Título</div>
+                                    <div class="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-100" x-text="detail?.titulo || '—'"></div>
                                 </div>
-                                <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
-                                    <div class="text-xs font-semibold text-slate-600">Programación</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900" x-text="fmtDate(detail?.fecha_programada)"></div>
+                                <div class="rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200 dark:bg-slate-950 dark:ring-slate-800">
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Programación</div>
+                                    <div class="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-100" x-text="fmtDate(detail?.fecha_programada)"></div>
                                 </div>
                             </div>
 
-                            <div class="mt-4">
-                                <div class="text-xs font-semibold text-slate-600">Descripción</div>
-                                <div class="mt-1 whitespace-pre-wrap text-sm text-slate-800" x-text="detail?.descripcion || '—'"></div>
-                            </div>
-
-                            <div class="mt-4">
-                                <div class="text-xs font-semibold text-slate-600">Notas</div>
-                                <div class="mt-1 whitespace-pre-wrap text-sm text-slate-800" x-text="stripInstallMeta(detail?.notas || '') || '—'"></div>
+                            <div class="mt-3 grid gap-3">
+                                <div class="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Descripción</div>
+                                    <div class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-slate-200" x-text="detail?.descripcion || '—'"></div>
+                                </div>
+                                <div class="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                                    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Notas</div>
+                                    <div class="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-slate-200" x-text="stripInstallMeta(detail?.notas || '') || '—'"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </x-modal>
