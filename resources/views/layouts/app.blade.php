@@ -38,7 +38,7 @@
             }
         </style>
     </head>
-    <body class="antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" style="font-family: var(--gc-font), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+    <body class="gc-compact antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" style="font-family: var(--gc-font), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
         <div x-data="{ sidebarOpen: false }"
              x-effect="document.documentElement.classList.toggle('overflow-hidden', sidebarOpen)"
              @keydown.escape.window="sidebarOpen = false"

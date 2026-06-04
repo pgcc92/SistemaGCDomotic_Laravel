@@ -27,7 +27,7 @@
 
 @layer components {
     .gc-card {
-        @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
+        @apply rounded-xl border border-slate-200/80 bg-white shadow-sm;
     }
 
     .dark .gc-card {
@@ -57,4 +57,133 @@
     .gc-safe-bottom {
         padding-bottom: env(safe-area-inset-bottom);
     }
+}
+
+/* Global compact UX layer.
+   This intentionally normalizes hard-coded utility-heavy screens so every module
+   keeps the same density and light/dark contrast without rewriting each modal. */
+.gc-compact .rounded-2xl {
+    border-radius: 0.75rem;
+}
+
+.gc-compact .rounded-xl {
+    border-radius: 0.625rem;
+}
+
+.gc-compact .p-6,
+.gc-compact .p-5 {
+    padding: 1rem;
+}
+
+.gc-compact .px-6,
+.gc-compact .px-5 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.gc-compact .py-5 {
+    padding-top: 0.875rem;
+    padding-bottom: 0.875rem;
+}
+
+.gc-compact .py-4 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.gc-compact .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
+}
+
+.gc-compact table {
+    font-size: 0.8125rem;
+}
+
+.gc-compact table th,
+.gc-compact table td {
+    padding: 0.625rem 0.75rem;
+    vertical-align: middle;
+}
+
+.gc-compact input:not([type="checkbox"]):not([type="radio"]),
+.gc-compact select,
+.gc-compact textarea {
+    border-radius: 0.625rem;
+    font-size: 0.875rem;
+}
+
+.gc-compact input:not([type="checkbox"]):not([type="radio"]),
+.gc-compact select {
+    min-height: 2.375rem;
+}
+
+.gc-compact textarea {
+    min-height: 4.5rem;
+}
+
+.gc-compact label {
+    color: rgb(51 65 85);
+}
+
+.dark .gc-compact label {
+    color: rgb(203 213 225);
+}
+
+.dark .gc-compact .bg-white {
+    background-color: rgb(15 23 42);
+}
+
+.dark .gc-compact .bg-slate-50 {
+    background-color: rgb(2 6 23);
+}
+
+.dark .gc-compact .bg-slate-100 {
+    background-color: rgb(30 41 59);
+}
+
+.dark .gc-compact .border-slate-100,
+.dark .gc-compact .border-slate-200 {
+    border-color: rgb(30 41 59);
+}
+
+.dark .gc-compact .ring-slate-100,
+.dark .gc-compact .ring-slate-200 {
+    --tw-ring-color: rgb(30 41 59);
+}
+
+.dark .gc-compact .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .gc-compact .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(30 41 59);
+}
+
+.dark .gc-compact .text-slate-950,
+.dark .gc-compact .text-slate-900,
+.dark .gc-compact .text-slate-800 {
+    color: rgb(241 245 249);
+}
+
+.dark .gc-compact .text-slate-700,
+.dark .gc-compact .text-slate-600 {
+    color: rgb(203 213 225);
+}
+
+.dark .gc-compact .text-slate-500 {
+    color: rgb(148 163 184);
+}
+
+.dark .gc-compact .hover\:bg-slate-50:hover,
+.dark .gc-compact .hover\:bg-slate-100:hover {
+    background-color: rgb(30 41 59);
+}
+
+.gc-compact [class*="shadow-"] {
+    --tw-shadow-color: rgb(15 23 42 / 0.08);
+}
+
+.dark .gc-compact [class*="shadow-"] {
+    --tw-shadow: 0 0 #0000;
+    --tw-shadow-colored: 0 0 #0000;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
