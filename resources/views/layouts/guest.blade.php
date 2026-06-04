@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="app-version" content="{{ app(\App\Support\AppVersion::class)->current() }}">
 
         @php($branding = app(\App\Domain\Tenant\TenantContext::class)->branding())
         <title>{{ $branding->systemName }}</title>

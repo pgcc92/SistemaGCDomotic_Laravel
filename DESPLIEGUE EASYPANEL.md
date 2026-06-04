@@ -34,6 +34,31 @@
 
 5. Vuelve a implementar el servicio. El volumen persistente evita que `settings`, `productos` y `dispositivos` se borren en cada deploy.
 
+### Refrescar después de cada cambio
+
+Cada deploy de la app debe recompilar assets para que Vite genere nombres nuevos con hash y el navegador descargue la versión nueva:
+
+```bash
+cd /var/www/html
+git pull origin main
+npm install
+npm run build
+php artisan optimize:clear
+php artisan route:clear
+php artisan config:clear
+php artisan view:clear
+```
+
+Después reinicia el contenedor `app-gcdomotic`.
+
+La app publica `/app-version` y las páginas HTML incluyen esa versión. Si un usuario tiene una página abierta y se sube un cambio nuevo, el navegador detecta el cambio y recarga la pantalla automáticamente.
+
+Si EasyPanel despliega sin carpeta `.git`, configura esta variable en cada deploy:
+
+```text
+APP_VERSION=<commit-o-version-del-deploy>
+```
+
 ## API
 
 1. En el servicio `api-gcdomotic`, verifica:
@@ -53,6 +78,18 @@
    ```bash
    curl -i -H "X-API-Key: $GC_API_TOKEN" https://api.gcdomotic.com/api/v1/health
    ```
+
+Para refrescar el API después de cada cambio:
+
+```bash
+cd /var/www/html
+git pull origin main
+php artisan optimize:clear
+php artisan route:clear
+php artisan config:clear
+```
+
+Después reinicia el contenedor `api-gcdomotic`.
 
 ## Verificación
 

@@ -21,6 +21,7 @@ use App\Http\Controllers\RolesController;
 use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\MeController;
+use App\Support\AppVersion;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,6 +41,14 @@ Route::get('/files/settings/{y}/{m}/{file}', [FileController::class, 'showSettin
     ->name('files.settings');
 
 Route::redirect('/', '/dashboard');
+
+Route::get('/app-version', function (AppVersion $version) {
+    return response()
+        ->json(['version' => $version->current()])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
+})->name('app.version');
 
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])

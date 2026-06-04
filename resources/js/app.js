@@ -177,4 +177,49 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.HSStaticMethods?.autoInit) {
         window.HSStaticMethods.autoInit();
     }
+    startAppVersionWatcher();
 });
+
+function startAppVersionWatcher() {
+    const meta = document.querySelector('meta[name="app-version"]');
+    const currentVersion = meta?.getAttribute('content') || '';
+    if (!currentVersion || currentVersion === 'dev') return;
+
+    let pendingVersion = '';
+    const reloadForUpdate = () => {
+        if (!pendingVersion) return;
+        sessionStorage.setItem('gc-app-version-reload', pendingVersion);
+        window.location.reload();
+    };
+
+    const checkVersion = async () => {
+        try {
+            const res = await fetch(`/app-version?_=${Date.now()}`, {
+                headers: { Accept: 'application/json' },
+                cache: 'no-store',
+                credentials: 'same-origin',
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const nextVersion = String(data?.version || '');
+            if (!nextVersion || nextVersion === currentVersion || nextVersion === pendingVersion) return;
+
+            pendingVersion = nextVersion;
+            if (document.visibilityState === 'visible') {
+                reloadForUpdate();
+            }
+        } catch {
+            // La comprobación de versión no debe interrumpir el uso normal.
+        }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (pendingVersion) reloadForUpdate();
+            else checkVersion();
+        }
+    });
+
+    window.setInterval(checkVersion, 60000);
+    window.setTimeout(checkVersion, 5000);
+}
