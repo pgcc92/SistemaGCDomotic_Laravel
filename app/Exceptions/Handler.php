@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -39,6 +40,16 @@ class Handler extends ExceptionHandler
             }
 
             return response($message, 503);
+        });
+
+        $this->renderable(function (PostTooLargeException $exception, Request $request) {
+            $message = 'Las imágenes superan el tamaño máximo permitido por el servidor. Reduce la cantidad o selecciona fotos más livianas.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['ok' => false, 'error' => $message], 413);
+            }
+
+            return back()->withErrors(['archivo' => $message]);
         });
 
         $this->reportable(function (Throwable $e) {

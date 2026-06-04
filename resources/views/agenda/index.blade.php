@@ -1577,8 +1577,18 @@
                             window.GCToast?.error?.('Agenda', this.completeError);
                             return;
                         }
-                        files.forEach((file) => fd.append('fotos[]', file));
-                        if (files[0]) fd.append('foto', files[0]);
+                        const uploadFiles = [];
+                        for (const file of files) {
+                            uploadFiles.push(await this.compressEvidenceImage(file));
+                        }
+                        const totalBytes = uploadFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
+                        if (totalBytes > 1800 * 1024) {
+                            this.completeError = 'Las imágenes son demasiado pesadas. Selecciona menos fotos o reduce su resolución.';
+                            window.GCToast?.error?.('Agenda', this.completeError);
+                            return;
+                        }
+                        uploadFiles.forEach((file) => fd.append('fotos[]', file));
+                        if (uploadFiles[0]) fd.append('foto', uploadFiles[0]);
 
                         const res = await window.axios.post(this.urls.complete(d.id), fd, {
                             headers: { 'Accept': 'application/json' },
@@ -1605,6 +1615,58 @@
                     } finally {
                         this.completeSaving = false;
                     }
+                },
+
+                async compressEvidenceImage(file) {
+                    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+                    if (!file || !allowed.includes(String(file.type || '').toLowerCase())) return file;
+                    if ((file.size || 0) <= 450 * 1024) return file;
+
+                    const bitmap = await this.loadImageBitmap(file);
+                    const canvas = document.createElement('canvas');
+                    const maxSide = 1280;
+                    const scale = Math.min(1, maxSide / Math.max(bitmap.width || maxSide, bitmap.height || maxSide));
+                    canvas.width = Math.max(1, Math.round((bitmap.width || maxSide) * scale));
+                    canvas.height = Math.max(1, Math.round((bitmap.height || maxSide) * scale));
+                    const ctx = canvas.getContext('2d', { alpha: false });
+                    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                    if (typeof bitmap.close === 'function') bitmap.close();
+
+                    const originalName = String(file.name || 'evidencia.jpg').replace(/\.[^.]+$/, '');
+                    let quality = 0.72;
+                    let blob = await this.canvasToBlob(canvas, 'image/jpeg', quality);
+                    while (blob.size > 450 * 1024 && quality > 0.45) {
+                        quality -= 0.08;
+                        blob = await this.canvasToBlob(canvas, 'image/jpeg', quality);
+                    }
+
+                    if (blob.size >= file.size) return file;
+                    return new File([blob], `${originalName}.jpg`, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                },
+
+                loadImageBitmap(file) {
+                    if (window.createImageBitmap) {
+                        return window.createImageBitmap(file, { imageOrientation: 'from-image' });
+                    }
+
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = URL.createObjectURL(file);
+                    });
+                },
+
+                canvasToBlob(canvas, type, quality) {
+                    return new Promise((resolve, reject) => {
+                        canvas.toBlob((blob) => {
+                            if (blob) resolve(blob);
+                            else reject(new Error('No se pudo preparar la imagen.'));
+                        }, type, quality);
+                    });
                 },
 
                 fillForm(row) {
