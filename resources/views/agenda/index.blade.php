@@ -749,6 +749,45 @@
                 </div>
             </form>
         </x-modal>
+
+        <x-modal name="agenda-evidencia-limite" maxWidth="md" focusable>
+            <div class="divide-y divide-slate-200">
+                <div class="px-6 py-4 flex items-start justify-between gap-3 bg-white/80 backdrop-blur">
+                    <div>
+                        <div class="text-sm font-semibold text-slate-900">Evidencia demasiado pesada</div>
+                        <div class="mt-0.5 text-xs text-slate-500">Reduce el peso de las imágenes para poder confirmar.</div>
+                    </div>
+                    <x-icon-button @click="$dispatch('close-modal','agenda-evidencia-limite')" aria-label="Cerrar">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </x-icon-button>
+                </div>
+                <div class="px-6 py-5">
+                    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" x-text="evidenceLimit.message"></div>
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="text-xs font-semibold text-slate-500">Seleccionado</div>
+                            <div class="mt-1 font-semibold text-slate-900" x-text="evidenceLimit.selected"></div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div class="text-xs font-semibold text-slate-500">Permitido</div>
+                            <div class="mt-1 font-semibold text-slate-900" x-text="evidenceLimit.allowed"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm text-slate-600">
+                        Selecciona menos fotos o toma las imágenes con menor resolución antes de volver a confirmar.
+                    </div>
+                </div>
+                <div class="px-6 py-4 flex justify-end bg-white/80 backdrop-blur">
+                    <button type="button"
+                            class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                            @click="$dispatch('close-modal','agenda-evidencia-limite')">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </x-modal>
     </div>
 
     <script>
@@ -819,6 +858,11 @@
                     notas: '',
                     gps_lat: '',
                     gps_lng: '',
+                },
+                evidenceLimit: {
+                    message: '',
+                    selected: '—',
+                    allowed: '—',
                 },
                 completeError: '',
                 completeSaving: false,
@@ -1573,8 +1617,11 @@
                         if (this.complete.gps_lng) fd.append('gps_lng', this.complete.gps_lng);
                         const files = Array.from(this.$refs?.completeFoto?.files || []);
                         if (files.length > 5) {
-                            this.completeError = 'Puedes subir máximo 5 imágenes.';
-                            window.GCToast?.error?.('Agenda', this.completeError);
+                            this.showEvidenceLimitDialog({
+                                message: 'Puedes subir máximo 5 imágenes por confirmación.',
+                                selected: `${files.length} imágenes`,
+                                allowed: '5 imágenes',
+                            });
                             return;
                         }
                         const uploadFiles = [];
@@ -1583,8 +1630,11 @@
                         }
                         const totalBytes = uploadFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
                         if (totalBytes > 1800 * 1024) {
-                            this.completeError = 'Las imágenes son demasiado pesadas. Selecciona menos fotos o reduce su resolución.';
-                            window.GCToast?.error?.('Agenda', this.completeError);
+                            this.showEvidenceLimitDialog({
+                                message: 'Las imágenes son demasiado pesadas para enviarlas al servidor.',
+                                selected: this.formatBytes(totalBytes),
+                                allowed: '1.8 MB',
+                            });
                             return;
                         }
                         uploadFiles.forEach((file) => fd.append('fotos[]', file));
@@ -1615,6 +1665,23 @@
                     } finally {
                         this.completeSaving = false;
                     }
+                },
+
+                showEvidenceLimitDialog({ message, selected, allowed }) {
+                    this.completeError = message;
+                    this.evidenceLimit = {
+                        message,
+                        selected: selected || '—',
+                        allowed: allowed || '—',
+                    };
+                    this.$dispatch('open-modal', 'agenda-evidencia-limite');
+                },
+
+                formatBytes(bytes) {
+                    const n = Number(bytes || 0);
+                    if (!Number.isFinite(n) || n <= 0) return '0 MB';
+                    if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+                    return `${(n / (1024 * 1024)).toFixed(2)} MB`;
                 },
 
                 async compressEvidenceImage(file) {
