@@ -78,6 +78,12 @@ final class AgendaController
             'duracion_min' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'prioridad' => ['nullable', 'string', 'max:20'],
             'notas' => ['nullable', 'string'],
+        ], [
+            'cliente_wa.max' => 'El campo Cliente (WhatsApp) debe contener un teléfono de máximo 30 caracteres. Selecciona un cliente de la lista o ingresa solo el número.',
+            'fecha_programada.required' => 'Ingresa la fecha programada.',
+            'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+            'duracion_min.min' => 'La duración mínima es 5 minutos.',
+            'duracion_min.max' => 'La duración máxima es 1440 minutos.',
         ]);
 
         $res = $this->data->agendaCrear($payload);
@@ -104,6 +110,11 @@ final class AgendaController
             'duracion_min' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'prioridad' => ['nullable', 'string', 'max:20'],
             'notas' => ['nullable', 'string'],
+        ], [
+            'cliente_wa.max' => 'El campo Cliente (WhatsApp) debe contener un teléfono de máximo 30 caracteres. Selecciona un cliente de la lista o ingresa solo el número.',
+            'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+            'duracion_min.min' => 'La duración mínima es 5 minutos.',
+            'duracion_min.max' => 'La duración máxima es 1440 minutos.',
         ]);
 
         $res = $this->data->agendaActualizar($id, $payload);
@@ -115,10 +126,10 @@ final class AgendaController
 
     public function destroy(int $id)
     {
-        $ok = $this->data->agendaEliminar($id);
-        return $ok
+        $res = $this->data->agendaEliminar($id);
+        return ($res['ok'] ?? false) === true
             ? response()->json(['ok' => true])
-            : response()->json(['ok' => false, 'error' => 'No se pudo eliminar.'], 422);
+            : response()->json(['ok' => false, 'error' => (string) ($res['error'] ?? 'No se pudo eliminar.')], 422);
     }
 
     public function complete(Request $request, int $id)

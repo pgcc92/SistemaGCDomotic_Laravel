@@ -477,10 +477,13 @@ final class RemoteDataClient
         return $res->successful() ? (array) $res->json('data', []) : ['error' => $this->apiError($res, 'No se pudo actualizar la agenda.')];
     }
 
-    public function agendaEliminar(int $id): bool
+    /** @return array{ok?:bool,error?:string} */
+    public function agendaEliminar(int $id): array
     {
         $res = $this->api->request()->delete("/api/v1/agenda/{$id}");
-        return $res->successful();
+        return $res->successful()
+            ? ['ok' => true]
+            : ['error' => $this->apiError($res, 'No se pudo eliminar la agenda.')];
     }
 
     /** @return array<string,mixed> */

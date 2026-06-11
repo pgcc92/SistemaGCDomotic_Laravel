@@ -143,6 +143,12 @@ final class AgendaController
             'duracion_min' => ['nullable', 'integer', 'min:5', 'max:1440'],
             'prioridad' => ['nullable', 'string', 'max:20'],
             'notas' => ['nullable', 'string'],
+        ], [
+            'cliente_wa.max' => 'El campo Cliente (WhatsApp) debe contener un teléfono de máximo 30 caracteres. Selecciona un cliente de la lista o ingresa solo el número.',
+            'fecha_programada.required' => 'Ingresa la fecha programada.',
+            'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+            'duracion_min.min' => 'La duración mínima es 5 minutos.',
+            'duracion_min.max' => 'La duración máxima es 1440 minutos.',
         ]);
 
         // Alcance parcial: siempre se asigna a sí mismo
@@ -216,6 +222,11 @@ final class AgendaController
             // opcionales (si existen columnas en la tabla)
             'terminado_at' => ['nullable', 'date'],
             'evidencia_dispositivo_id' => ['nullable', 'integer'],
+        ], [
+            'cliente_wa.max' => 'El campo Cliente (WhatsApp) debe contener un teléfono de máximo 30 caracteres. Selecciona un cliente de la lista o ingresa solo el número.',
+            'fecha_programada.date' => 'La fecha programada no tiene un formato válido.',
+            'duracion_min.min' => 'La duración mínima es 5 minutos.',
+            'duracion_min.max' => 'La duración máxima es 1440 minutos.',
         ]);
 
         $extraCols = $this->schema->existingColumns($table, ['terminado_at', 'evidencia_dispositivo_id']);
@@ -266,13 +277,19 @@ final class AgendaController
         }
 
         $uid = (int) $request->attributes->get('remote_uid', 0);
-        $isAdmin = $this->isAdminForRequest($request);
         if ($uid <= 0) {
             return response()->json(['ok' => false, 'error' => 'Unauthorized'], 401);
         }
-        if (!$isAdmin) {
+
+        $isAdmin = $this->rbac->isAdmin($uid);
+        if (!$isAdmin && !$this->rbac->can($uid, 'agenda', 'eliminar')) {
+            return response()->json(['ok' => false, 'error' => 'No tienes permiso para eliminar agendas.'], 403);
+        }
+
+        $canViewAll = $isAdmin || $this->rbac->canViewAll($uid, 'agenda');
+        if (!$canViewAll) {
             if ((int) ($row->tecnico_id ?? 0) !== $uid) {
-                return response()->json(['ok' => false, 'error' => 'Forbidden'], 403);
+                return response()->json(['ok' => false, 'error' => 'No puedes eliminar una agenda asignada a otro técnico.'], 403);
             }
         }
 
