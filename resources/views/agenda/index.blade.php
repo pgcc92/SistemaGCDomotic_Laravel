@@ -1463,6 +1463,17 @@
                     return fallback;
                 },
 
+                normalizeClienteWaForSubmit(value) {
+                    const raw = String(value || '').trim();
+                    if (!raw) return null;
+
+                    const compact = raw.replace(/[^\d+]/g, '');
+                    if (compact.length >= 6 && compact.length <= 30) return compact;
+                    if (raw.length <= 30 && /\d/.test(raw)) return raw;
+
+                    return null;
+                },
+
                 openNewForDate(isoDate = null) {
                     this.resetForm();
                     if (isoDate) {
@@ -2076,10 +2087,12 @@
 	                        if (!payload.venta_id) payload.venta_id = null;
 	                        if (!payload.ticket_id) payload.ticket_id = null;
 	                        if (!payload.tecnico_id) payload.tecnico_id = null;
+                            if (!payload.cliente_id) payload.cliente_id = null;
+                            payload.cliente_wa = this.normalizeClienteWaForSubmit(payload.cliente_wa);
 	                        const url = this.form.id ? this.urls.update(this.form.id) : this.urls.create;
 	                        const res = await window.axios.post(url, payload, { headers: { 'Accept': 'application/json' } });
                         if (res.data?.ok !== true) {
-                            this.formError = res.data?.error || 'No se pudo guardar.';
+                            this.formError = this.responseError(res.data, 'No se pudo guardar.');
                             window.GCToast?.error?.(this.formError);
                             return;
                         }
@@ -2087,7 +2100,7 @@
                         window.GCToast?.success?.('Agenda guardada');
                         this.$dispatch('close-modal', 'agenda-form');
                     } catch (e) {
-                        this.formError = e?.response?.data?.error || e?.message || 'Error';
+                        this.formError = this.responseError(e?.response?.data, e?.message || 'Error');
                         window.GCToast?.error?.(this.formError);
                     } finally {
                         this.saving = false;
@@ -2100,14 +2113,14 @@
                     try {
                         const res = await window.axios.post(this.urls.destroy(this.form.id), {}, { headers: { 'Accept': 'application/json' } });
                         if (res.data?.ok !== true) {
-                            window.GCToast?.error?.(res.data?.error || 'No se pudo eliminar.');
+                            window.GCToast?.error?.(this.responseError(res.data, 'No se pudo eliminar.'));
                             return;
                         }
                         await this.reload();
                         window.GCToast?.success?.('Agenda eliminada');
                         this.$dispatch('close-modal', 'agenda-form');
                     } catch (e) {
-                        window.GCToast?.error?.(e?.response?.data?.error || e?.message || 'Error');
+                        window.GCToast?.error?.(this.responseError(e?.response?.data, e?.message || 'Error'));
                     } finally {
                         this.saving = false;
                     }
