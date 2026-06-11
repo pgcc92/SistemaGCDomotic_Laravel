@@ -70,25 +70,14 @@ final class RbacService
             return $this->permsCache[$usuarioId] = ['*' => ['*' => true]];
         }
 
-        // Jerarquía: permisos por usuario > permisos por rol.
-        // Si existen permisos por usuario, se aplican (deny-by-default).
-        $hasUserPerms = DB::table('usuario_permisos')->where('usuario_id', $usuarioId)->exists();
-
-        $rows = $hasUserPerms
-            ? DB::table('usuario_permisos as up')
-                ->join('modulos as m', 'm.id', '=', 'up.modulo_id')
-                ->join('acciones as a', 'a.id', '=', 'up.accion_id')
-                ->where('up.usuario_id', $usuarioId)
-                ->select(['m.codigo as modulo', 'a.codigo as accion', 'up.permitido'])
-                ->get()
-            : ($rolId
-                ? DB::table('rol_permisos as rp')
-                    ->join('modulos as m', 'm.id', '=', 'rp.modulo_id')
-                    ->join('acciones as a', 'a.id', '=', 'rp.accion_id')
-                    ->where('rp.rol_id', $rolId)
-                    ->select(['m.codigo as modulo', 'a.codigo as accion', 'rp.permitido'])
-                    ->get()
-                : collect());
+        // Solo permisos personalizados (usuario_permisos). No se usa rol_permisos.
+        // DENY-BY-DEFAULT: si no existe en usuario_permisos, no hay acceso.
+        $rows = DB::table('usuario_permisos as up')
+            ->join('modulos as m', 'm.id', '=', 'up.modulo_id')
+            ->join('acciones as a', 'a.id', '=', 'up.accion_id')
+            ->where('up.usuario_id', $usuarioId)
+            ->select(['m.codigo as modulo', 'a.codigo as accion', 'up.permitido'])
+            ->get();
 
         $perms = [];
         foreach ($rows as $r) {
